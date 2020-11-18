@@ -1,0 +1,695 @@
+---
+title: "Day 1 Programming Lab"
+author: "Clark"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Intro to R
+
+The code presented in this lab was loosely adapted from *An Introduction to Statistical Learning with Applications in R* by James *et al.* This particular programming lab draws from Lab: Introduction to R (2.3) in ISLR.
+
+**Learning Goals:**
+
+* Apply internet searches, help functions, and documentation to learn to use the appropriate functions. 
+* Assign and manipulate variables within the current environment/session in R.
+* Create, modify, and access into a vector (an ordered grouping of elements).
+* Create, modify, and access into a dataframe (an ordered two-dimensional grouping of elements with rows and columns).
+* Use loops and conditional logic to automate tasks and/or filter datasets.
+
+**Instructions:** Everywhere you see the **Task** prompt, please be sure to write in your code or response underneath the prompt. Be sure that the code is able to execute completely and that the result you expect is shown in the resulting html file.
+
+------
+
+#### Getting Help in R
+
+If you run into any error while using R, it is a great idea to look up your error message in Google and read through forum posts on StackOverflow. You may find it also helps to know more about your session info such as the version of R you are using, and what packages you have currently loaded.
+
+```{r}
+sessionInfo()
+```
+
+You can look up what functions do using either a question mark `?` or the `help` function.
+
+```{r}
+?rm
+help(rm)
+#Question mark is sort of like a function that activates help panel on the right.
+```
+
+**Task:** use the `help` function to look up another function that appears in the ISLR textbook. This function shows results if you use it within a .R file or within the console as the documentation appears in one panel of RStudio. Which function did you look up?
+
+*Your response here*
+```{r}
+?tree
+help(tree)
+#According to help panel, tree function turns output of string into a tree diagram. Probably will be used in the later part of the course.
+```
+------
+
+#### Variables
+
+You can assign variables using the `=` or `<-` operators. I will use the `<-` operator exclusively going forward.
+
+```{r}
+save.num <- 7
+save.num
+#Variable manipulation is similar to python.
+```
+
+Variables are mutable: you can overwrite the saved value of a variable with another value.
+
+```{r}
+save.num = 10
+save.num
+```
+
+Variables can be saved as other values such as character strings or boolean values (True or False).
+
+**Task:** try assigning multiple other variables below. See what types of data works to save and what variable names are acceptable in R. Discuss your findings with a programming buddy.
+
+```{r}
+save.string <- "hello"
+save.bool <- TRUE
+
+# Your code here
+save.num2 <- 8
+save.num2
+save.string2 <- "Hello World"
+save.bool2 = FALSE
+```
+
+You can check what variables you have assigned in your current working environment.
+
+```{r}
+save.num2
+save.string2
+ls()
+```
+
+You can also remove saved variables.
+
+```{r}
+rm(save.num)
+ls()
+```
+
+**Task:** check that you can only remove one or two of the new variables you created, but that you can see the other ones still retained when you call the `ls` function.
+
+```{r}
+# Your code here
+?ls
+#ls() means list objects. It returns all the character strings and the variables defined by myself.
+rm(save.bool)
+rm(save.bool2)
+ls()
+```
+
+------
+
+#### Working with Vectors
+
+You can create vectors (an ordered list of elements) by combining elements with the `c` function.
+
+```{r}
+first_vector <- c(38, 32, 45, 23, 6, 56,
+                  234, 1239, 123, 123, 342, 1234)
+second_vector <- c(1, 34, 10)
+first_vector
+second_vector
+#Re-writing the variable name will call forth the vector
+```
+
+```{r}
+third_vector <- c(first_vector, second_vector)
+third_vector
+#This combines the first and second vector almost concatenating two strings in Python
+fruits <- c("apples", "oranges", "bananas")
+```
+
+**Task:** try making a vector that contains elements of different data types (character strings like "this" or numeric values like 12).
+
+```{r}
+# Your code here
+fourth_vector = c("then", "that", "there", "when", "what", "where", 11, 12, 13)
+fourth_vector
+#It turns the numerical values into a vector of strings
+```
+
+R comes with pre-built variables that you can use, such as the vector of all alphabetic characters.
+
+```{r}
+letters
+LETTERS
+#Capitalize if using capitalized letters
+```
+
+There are several helpful functions and an operator that can speed up your ability to generate vectors of numeric values. Explore what the `:` operator does below and generate a few numeric vectors of your own.
+
+```{r}
+1:4
+#Colon symbolizes the "in-between" terms.
+?seq 
+#seq function generates a regular sequence.
+?rep
+#rep function replicates the arguments in x.
+z <- seq(-pi, pi, length = 20)
+#Here we define a variable z
+#seq describes a linear function that begins with negative pi and ends with positive pi that has twenty values in between (and including) them. So -3.14... to -2.81... all the way to 3.14....
+z
+```
+
+```{r}
+x <- c(1, 3, 2)
+x
+```
+
+```{r}
+y <- c(1, 4, 3)
+length(x)
+length(y)
+#The length function, calculates number of values in a vector.
+```
+
+What does the `length` function do? Test it on a few more vectors that you have created.
+
+```{r}
+x + y
+#Adding two vectors returns a vector that has all of its corresponding components as sums.
+```
+
+**Task:** figure out what happens when you try to add two vectors containing numeric values that are of different lengths (i.e. one vector contains three numbers, the other vector contains five numbers).
+
+```{r}
+# Your code here
+z = c(1,2,3,4,5)
+x+z
+#You cannot add vectors of different lengths
+```
+
+**Task:** make a vector that contains only odd numbers between 9 and 35.
+
+```{r}
+# Your code here
+z = seq(9, 35, length=14)
+z
+```
+
+**Task:** make a vector that contains five of each number between 3 and 6.
+
+```{r}
+# Your code here
+task_vector = c(3,3,3,3,3,4,4,4,4,4,5,5,5,5,5,6,6,6,6,6)
+task_vector
+```
+
+You can perform mathematical operations on an entire numeric vector all at once.
+
+```{r}
+first_vector * 2
+first_vector
+?sin
+#We can use trig functions!
+sin(first_vector)
+```
+
+------
+
+#### Indexing and Subsetting
+
+Indexing is a way to access into a vector (or matrix/data frame) and pull out certain elements. There are multiple ways to index into a vector, one of the easiest ways is to pull out an element based on its order/position in the grouping (its index). We use `[]` immediately after the name of the grouping (in this case a vector) to access into it.
+
+```{r}
+second_vector[2] # pull out second element
+fruits[3] # pull out third fruit
+```
+
+```{r}
+fruits[2:3] # pull out 2nd and 3rd fruit
+#The colon, again, means in between
+fruits[c(1, 3)] # pull out 1st and 3rd fruit
+#Comma with index just means "and"
+```
+
+**Task:** index into the vector `first_vector` and access only every other number contained in that vector.
+
+```{r}
+# Your code here
+
+first_vector
+first_vector[seq(1,13,length=7)]
+#We had to go one value extra.
+```
+
+You can remove elements of a vector by using the same syntax of indexing, but instead put a negative sign in front of the index number.
+
+```{r}
+fruits[-1]
+```
+
+**Task:** index into the vector `letters` and access only the last ten letters.
+
+```{r}
+# Your code here
+letters[-(1:16)]
+```
+
+You can also index into a grouping based on the name. Vectors are typically not named (where each element has a label), but you can label them with names and use that name to pull out that element.
+
+```{r}
+names(fruits)
+names(fruits) <- c("first", "second", "third")
+fruits["first"] # pulls out the element with the name/label "first"
+```
+
+------
+
+#### Using Logicals
+
+You can also access elements in a vector that meet certain criteria (using conditional logic).
+
+```{r}
+second_vector < 20
+second_vector[second_vector < 20]
+#Returns only values whose index (in this case a numerical value) meeta a certain criterion
+```
+
+You can use the standard comparison operators like `>` or `<` to check greater than or less than. You can also use `==` to check for equality or `!=` to check that values are not equal.
+
+```{r}
+save.num <- 7
+save.num + 10
+save.num != 8
+save.num == 8
+```
+
+**Task:** check what happens when you check that a vector of numeric values is less than or greater than a certain number. What might you be able to do with this information?
+
+```{r}
+# Your code here
+first_vector<10
+#When checking a vector against a numerical comparison, it does the comparison for each numerical value within the vector
+```
+
+*Your response here*
+This can potentially help us categorize large amounts of data within a single vector. For example, if there are three vectors corresponding to information pertaining to three different genes, then we can cross analyze these vectors by comparing all to the same numerical value.
+
+```{r}
+fruit.prices <- c(1, 2, 1.5, 3, 4, 2, 1)
+names(fruit.prices) <- c("apples", "oranges", "grapes",
+                         "clementines", "pineapple", "pear",
+                         "cherries")
+fruit.prices
+```
+
+**Task:** pretend that fruits are on sale 20% off. Figure out the new prices. Then calculate how much it would cost for someone to buy three apples, one pineapple, and two pears. Check your work with a programming buddy and compare the strategies you used.
+
+```{r}
+# Your code here
+new.fruit.prices = 0.8*(fruit.prices)
+#We then use the naming labels to extract the price
+cost = 3*fruit.prices["apples"] + fruit.prices["pineapple"] + 2*fruit.prices["pear"]
+names(cost) = "total price"
+#This annotates the cost
+cost
+```
+
+------
+
+#### Working with Matrices
+
+The most common data format we will deal with is a matrix format. This means that data is stored in a 2D array with the rows referring to individual measurements (single patients, samples, cells, etc.) and the columns referring to parameters (genes, proteins, etc.) measured in each individual.
+
+```{r}
+x <- matrix(data = c(1, 2, 3, 4), nrow = 2, ncol = 2)
+x
+```
+
+**Task:** check what arguments the `matrix` function takes.
+
+```{r}
+# Your code here
+?matrix
+#Matrix takes arguments DATA, NROW, NCOL, BYROW, DIMNAMES.
+#DATA implies string or numerical vectors. NROW and NCOL defines the dimensions of the matrix and how the data would be organized.BYROW is a boolean value and determines whether the matrix is filled by rows or columns. Default is row.
+```
+
+
+```{r}
+x <- matrix(c(1, 2, 3, 4), 2, 2)
+x
+matrix(c(1, 2, 3, 4), 2, 2, byrow = TRUE)
+```
+
+You can perform mathematical operations on an entire matrix.
+
+```{r}
+sqrt(x)
+x^2
+```
+
+You can index into a matrix and pull out one or more cells within the matrix.
+
+```{r}
+A <- matrix(1:16, 4, 4)
+#The data are numbers from 1 to 16
+A
+A[2, 3]
+```
+
+Yo can pull out multiple elements at a time, specifying which row and column they reside in.
+
+```{r}
+A[c(1, 3), c(2, 4)]
+#Since A was defined as the matrix, here we call forth the numbers on the 1st and 3rd row and the 2nd and 4th column to form a new matrix.
+```
+
+```{r}
+A[1:3, 2:4]
+```
+
+If you provide the row and not the column, or vice versa, by default R will pull out all of the available columns and rows respectively.
+
+```{r}
+A[1:2, ] # pulls out the first two rows and all columns
+A[, 1:2] # pulls out the first columns and all rows
+#Essentially by leaving blank R returns all of that category.
+```
+
+**Task:** try to access into the `A` matrix and only pull out the values 6, 7, and 8.
+
+```{r}
+# Your code here
+A[c(4),c(2)]
+```
+
+It's possible to also remove elements in a matrix using the negative sign.
+
+```{r}
+A[-c(1, 3), ] # removes the first and third rows
+```
+
+```{r}
+A[-c(1, 3), -c(1, 3, 4)]
+#This removes the first and third rows, as well as the first, third, and fourth columns. This leaves 2,2 and 4,2 in A.
+```
+
+There are a few different functions you can use to investigate a matrix, the size of it, and other aspects.
+
+```{r}
+dim(A)
+#Dimensions
+```
+
+**Task:** investigate what the `dim` function does when you provide it with a matrix.
+
+```{r}
+# Your code here
+B = matrix(1:25, 5, 5)
+dim(B)
+```
+
+**Task:** try to create a matrix that contains both character strings (like "apple") and numeric values (like 26). Check what the matrix looks like. What has happened?
+
+```{r}
+# Your code here
+C = matrix(data = c("apples","oranges","bananas",25,26,27),3,2)
+C
+#Like vectors with both strings and numbers, the matrix makes the numbers strings.
+```
+
+------
+
+#### Working with Dataframes
+
+More commonly we will work with a dataframe instead of just a matrix. A dataframe is useful because it can tolerate different datatypes. The `gapminder` dataset is a pre-made dataset that we can play around with.
+
+```{r}
+library(gapminder)
+head(gapminder)
+```
+
+```{r}
+gapminder <- as.data.frame(gapminder)
+#I don't seem to see why we had to manipulate it
+?as.data.frame
+#Oh so it means to check if the argument is indeed a data frame. It it wasn't, it would have altered the form of the data to become one.
+head(gapminder)
+```
+
+We can also just generate our own dataframes.
+
+```{r}
+cats <- data.frame(coat = c("calico", "black", "tabby"),
+                   weight = c(2.1, 5.0, 3.2),
+                   likes_string = c(1, 0, 1))
+cats
+#This resembles a dictionary in Python, except in a more visualized manner.
+```
+
+You can check what kind of data you are working with using the `class` and/or `typeof` functions.
+
+```{r}
+class(A) # tells you that A is a matrix, 2D grouping of data
+typeof(A) # tells you that A is a numeric matrix, only containing integer values
+```
+
+You can use the following functions to investigate aspects of a given dataset.
+
+```{r}
+dim(gapminder)
+ncol(gapminder)
+nrow(gapminder)
+summary(gapminder)
+```
+
+Same as with a matrix, you can index into a dataframe or subset (pull out) certain values. You can do it using the same `[]` brackets and a numeric value for the rows and/or columns. Dataframes also allow you to index into the columns specifically by name using the `$` operator as shown below.
+
+```{r}
+head(gapminder$continent)
+?head #Head function returns the first or last parts of the argument.
+#Gapminder$Continent is like Gapminder["Continent"]
+```
+
+**Task:** access only specific columns of the `cats` dataframe using either the index or the name of the dataframe column.
+
+```{r}
+# Your code here
+cats[1]
+cats[1:2]
+head(cats$coat)
+```
+
+**Task:** use the diagnostic functions (e.g. `dim`) on the entire `cats` dataframe as well as check the type/class of individual rows or columns of this dataframe. Discuss with a programming buddy what you can learn from these outputs.
+
+```{r}
+# Your code here
+dim(cats)
+typeof(cats)
+class(cats)
+```
+
+*Your response here*
+We use these diagnostic functions to learn the essential information of the cats dataframe.We can confirm that it is a data frame, we can confirm that it's made up of lists, and we can learn the number of rows and columns the dataframe has.
+
+You can add new rows and columns using the `rbind` and `cbind` functions.
+
+```{r}
+cats <- cbind(cats, length = c(2, 3, 1))
+cats
+```
+
+You can also remove rows and columns using the trick with a negative index.
+
+```{r}
+cats[, -1]
+cats[-1, ]
+```
+
+You can merge two dataframes together using the `rbind` function assuming that their columns match up correctly.
+
+```{r}
+newcats <- data.frame(coat = c("white", "gold", "silver"),
+                      weight = c(3.1, 5.3, 1.9), 
+                      likes_string = c(1, 0, 0),
+                      length = c(4, 2, 3))
+newcats
+```
+
+```{r}
+cats <- rbind(cats, newcats)
+cats
+```
+
+**Task:** try to add a new cat (a new row of values) to the `cats` dataframe using the `rbind` function. What happens? Share with your programming buddy.
+
+```{r}
+# Your code here
+even_newer_cats = data.frame(coat = c("brown"), weight = 4.5, likes_string = 0, length = 4)
+cats = rbind(cats, even_newer_cats)
+cats
+```
+
+*Your response here*
+I added a brown cat of 4.5kg that doesn't like playing strings.
+------
+
+#### Type Coercion and Factors
+
+```{r}
+cats <- rbind(cats, c(coat = "spotted", weight = 2.4,
+              likes_string = 0, length = 2.5))
+cats
+```
+
+```{r}
+cats[, 1]
+```
+
+What has happened with this new addition? If you tried to add a new cat to the dataframe that had a color that wasn't already represented in the data, chances are you had a warning and that color was turned to `NA`.
+
+```{r}
+cats[, 1]
+#I'm a little confused here. When I added the brown cat, I didn't receive a warning.
+```
+
+**Task:** check the typeof or class of this column that contains the coat colors.
+
+```{r}
+# Your code here
+typeof(cats[1])
+```
+
+You may have seen certain parts of dataframes are factors with levels. Factors are a special data type that deals with categorical data. They can be handy for certain manipulations or visualizations, but once a factor is created, it doesn't let you easily add new categories that were not in the original set. The easiest way around this is to treat the column as characters instead of as factors.
+
+```{r}
+cats <- rbind(cats, c(coat = "calico", weight = 3.2,
+                      likes_string = 1, length = 3))
+
+as.character(cats[, 1])
+```
+
+**Task:** overwrite the first column of the `cats` dataframe with the first column converted to a character vector (instead of a factor). Check if you are now able to add new cat measurements with the `rbind` function and if you still get the same error.
+
+```{r}
+# Your code here
+cats[,1] = c("calico","black","tabby","white","gold","silver","brown","spotted","calico")
+cats
+```
+
+**Task:** test some of these same manipulations on the `gapminder` dataset!
+
+```{r}
+# Your code here
+gapminder = rbind(gapminder,c(country = "Afghanistan",continent = "Asia", year = 2020, lifeExp = 64.96, population = 38928346, gdpPercap = "571 USD"))
+gapminder
+```
+
+------
+
+#### Loops
+
+You can use loops to execute the same task repeatedly, especially to repeat the task on every element in a grouping of elements.
+
+Using `for` loops will repeat the same code contained in the loop where the variable after the `for` is assigned to the first, then the second, etc. all the way to the last element in the group of elements you provide.
+
+```{r}
+for (i in fruits) {
+  print(i)
+}
+```
+
+Here, `i` is set to the first element of the `fruits` and then the code is executed (`print(i)`). Once the computer hits the bottom of the code in the `for` loop, it goes back to the beginning and repeats with `i` set to the second element of `fruits`. This will continue until it has assigned `i` to every possible element in `fruits` including the last one.
+
+**Task:** check what the `i` variable is currently set to. Why do you think it contains that value?
+
+```{r}
+# Your code here
+i
+```
+
+*Your response here*
+i is currently set to "bananas." This makes sense because variables are mutable and it was ultimately changed to "bananas" before the for loop closed.
+
+```{r}
+for (x in 1:5) {
+  print(x)
+  print(x %% 2)
+}
+#%% means calculating remainder.
+rm(x)
+```
+
+The `while` loop is an alternative to the `for` loop. It will execute the code contained in the loop repeatedly as long as the provided conditional logic statement evaluates to True. You should only use `while` loops when the value being checked is changing within the loop or else the loop will never end.
+
+```{r}
+x <- 10
+x < 100
+```
+
+```{r}
+while (x < 100) {
+  print(x)
+  x <- x * 2
+  # stuff
+}
+```
+
+**Task:** discuss with a programming buddy why the loop stopped when it did and check the values of the involved variables to prove it.
+
+*Your response here*
+The loop stopped after x was printed to be 80. If the loop had continued, 80*2 = 160 and 160 is greater than 100, which does not fulfill the "while" loop requirement. As a result, 160 and the following values in the geometric sequence was not printed.
+------
+
+#### Conditional Logic
+
+As we have seen, conditional logic is where a statement evaluates to True or False. You can pair these conditional statements with an `if`/`else` statement that breaks up the code and only executes parts of the code where conditions are met.
+
+```{r}
+test.num <- 30
+
+if (test.num < 10) {
+  print("small")
+} else {
+  print("big")
+}
+```
+
+```{r}
+10 %% 2
+9 %% 2
+```
+
+**Task:** determine what the `%%` operator does.
+
+```{r}
+# Your code here
+#The %% operator calculates the remainder after the number to its left (the dividend) is divided by the number to its right (the divisor)
+```
+
+```{r}
+num.vectors <- 1:5
+for (i in num.vectors) {
+  if (i %% 2 == 0) {
+    print("even")
+  } else {
+    print("odd")
+  }
+}
+```
+
+**Task:** rewrite the above code to identify all multiples of 4 between 0 and 30. Work with your programming buddy.
+
+```{r}
+# Your code here
+num.vectors = 0:30
+for (i in num.vectors) {
+  if (i %% 4 == 0) {
+    print(i)
+  }
+}
+```
