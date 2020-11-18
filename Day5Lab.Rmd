@@ -1,0 +1,333 @@
+---
+title: "Day 5 Programming Lab"
+author: "Clark"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Graphs and Networks
+
+The code presented in this lab was adapted from the "Introduction to Network Analysis with R" webpost by Jesse Sadler.
+
+**Learning Goals:**
+
+* Generate graphs and identify the features of graphs including nodes and edges.
+* Assign and visualize attributes of nodes and edges within a network to observe patterns in the underlying data.
+* Discuss different thresholds for drawing edges betwee nodes in a graph, whether it be an explicit relationship or a distance/similarity metric over a set threshold.
+* Interpret the significance of communities and node degree/hub score within a network.
+
+**Instructions:** Everywhere you see the **Task** prompt, please be sure to write in your code or response underneath the prompt. Be sure that the code is able to execute completely and that the result you expect is shown in the resulting html file.
+
+------
+
+#### Creating a New Graph in *igraph*
+
+```{r}
+library(igraph)
+```
+
+*igraph* is a great package for working with graphs. It has many packages that enable us to create graphs as objects (or the closest R has to objects) and perform many graph analysis functions on these objects.
+
+There are functions that *igraph* provides for generating graphs without prexisting data. Usually these graphs come in certain constrained shapes and you provide settings to these functions to tweak the output graph.
+
+```{r}
+save.graph1 <- sample_k_regular(10, 3, directed = FALSE, multiple = FALSE)
+save.graph2 <- sample_k_regular(30, 4, directed = FALSE, multiple = FALSE)
+save.graph1
+plot(save.graph1)
+plot(save.graph2)
+```
+
+Check what this function does using `help(sample_k_regular)`.
+
+**Task**: based on the output above and your investigation with the `help` function, what are the first two numbers that we pass to the `sample_k_regular` function doing? Try changing those values and see how the graph looks. Try also changing the other two settings `directed` and `multiple` to `TRUE` instead of `FALSE`.
+
+```{r}
+# Your code here
+```
+
+*Your response here*
+
+```{r}
+ring.graph <- graph.ring(10, circular = FALSE)
+plot(ring.graph)
+```
+
+Use `help(graph.ring)` to check what this function generates.
+
+**Task**: based on the output above and your investigation with the `help` function, what settings does `graph.ring` take and how would your graph change if you change these settings?
+
+```{r}
+# Your code here
+```
+
+*Your response here*
+
+```{r}
+star.graph <- graph.star(10, mode = "mutual", center = 5)
+plot(star.graph)
+```
+
+Use `help(graph.star)` to check what this function generates.
+
+**Task**: based on the output above and your investigation with the `help` function, what settings does `graph.star` take and how would your graph change if you change these settings?
+
+```{r}
+# Your code here
+```
+
+*Your response here*
+
+Touch base with your programming buddy and compare some of the graphs that you have produced. Check that you understand what the nodes and edges are in each graph, and how they affect the overall graph shape.
+
+------
+
+#### Setting Graph Attributes
+
+Currently the graphs we have made store very little information.
+
+```{r}
+print(star.graph)
+```
+
+Printing an *igraph* graph object tells you how many nodes there are and how many edges there are. It also tells you the edges based on where the edge starts (from) and where the edge ends (to). So seeing the following listed under edges: 1--15 means that there is an edge connecting node 1 and node 15. Here the edges are undirected (not arrows) so they are connections and do not point from one to the other.
+
+We can also see the attributes that this graph possesses. The formatting for these attributes is that what the attribute is called is provided (for example, "name" or "mode"). What follows this labeling in the parentheses tells you what kind of attribute it is and what it applies to. For example, the following "(g/c)" means that the attribute belongs to the entire graph and is a character type data.
+
+We can also quickly extract all nodes (vertices) or all edges.
+
+```{r}
+V(star.graph)
+E(star.graph)
+```
+
+Use `help(set.vertex.attribute)` to see how we can add attributes to vertices in this graph.
+
+```{r}
+star.graph <- set.vertex.attribute(star.graph, name = "label", index = V(star.graph), value = 11:20)
+star.graph <- set.edge.attribute(star.graph, name = "color", index = E(star.graph), value = rep("green", times = 18))
+star.graph
+```
+
+We can see that we have added a new attribute that applies to the vertices (nodes) and is of the character data type (v/c).
+
+Use `help(list.vertex.attributes)` to check what attributes have been added vertices in this graph.
+
+```{r}
+list.vertex.attributes(star.graph)
+list.edge.attributes(star.graph)
+```
+
+Check what the `get.vertex.attribute` function does using `help`.
+
+```{r}
+get.vertex.attribute(star.graph, name = "label", index = V(star.graph))
+get.vertex.attribute(star.graph, name = "label", index = 5)
+```
+
+```{r}
+plot(star.graph)
+```
+
+**Task**: try assigning a different attribute to the vertices/nodes.
+
+```{r}
+# Your code here
+```
+
+**Task**: try assigning an attribute to the edges using the same functions above, but replace every instance of "vertex" with "edge."
+
+```{r}
+# Your code here
+```
+
+------
+
+#### Creating Graphs from Data
+
+Realistically you will want to create a graph from existing data. Below we are going to generate a graph from data wherein we make every row/measurement into a separate node. We then draw edges based on a threshold of similarity. If two nodes are similar enough, they will be connected by an edge.
+
+```{r}
+library(ISLR)
+head(Auto)
+```
+
+To make for a small and manageable graph, we will only take the first fifteen cars to investigate and plot.
+
+```{r}
+Auto.short <- Auto[1:15, ]
+nrow(Auto.short)
+```
+
+To build our graph, we will first generate an "empty" graph. Meaning the graph will contain nodes, but they will have no connections.
+
+```{r}
+auto.graph <- graph.empty(n = nrow(Auto.short), directed = FALSE)
+plot(auto.graph)
+```
+
+Right now this graph is printing the nodes as labeled 1 through 15. However, we ideally want to see the names of the different cars labeled on the nodes.
+
+```{r}
+car.names <- as.character(Auto.short$name)
+auto.graph <- set.vertex.attribute(auto.graph, name = "label", index = V(auto.graph), value = car.names)
+plot(auto.graph)
+```
+
+The `Auto` dataset is a dataframe and a mix of numeric data and character or categorical data. We want to calculate the similarities between cars, but it doesn't make sense to calculate the similarity between two cars in terms of the year they were made. Instead, let's choose a few numeric states and calculate how similar cars are based on those stats.
+
+```{r}
+Auto.stats <- Auto.short[, c("mpg", "horsepower", "acceleration")]
+head(Auto.stats)
+```
+
+Now we can calculate the distance between every row (individual data points) using the `dist` function.
+
+```{r}
+stats.similarity <- dist(Auto.stats, method = "euclidean")
+stats.similarity <- as.matrix(stats.similarity)
+stats.similarity[1:5, 1:5]
+```
+
+As an arbitrarily chosen threshold, we will say that any car is "similar enough" to be connected by an edge if it's similarity is a small distance. Distance and similarity are inversely related: the larger the distance in space, the less similar the data points are.
+
+```{r}
+threshold <- 0.25 * mean(stats.similarity)
+```
+
+We first convert our distances to a matrix type of data and then we get rid of the upper triangle of data (by setting it to zero). You can think of a distance matrix as each cell containing a number that represents the distance between two points: one point is specified by the row and the other point is specified by the column. For example, if we indexed into a distance matrix like this: `distance_matrix[1, 4]` this means we will extract a number that represents how far point 1 is from point 4. However, this matrix is symmetric meaning that `distance_matrix[1, 4]` will be the same as `distance_matrix[4, 1]` because the distance from point 1 to point 4 is the same as the distance from point 4 to point 1. So we make those duplicate values set to infinity (`Inf`) so that we don't draw two identical edges.
+
+```{r}
+stats.similarity[upper.tri(stats.similarity, diag = TRUE)] <- Inf
+stats.similarity[1:5, 1:5]
+```
+
+Here we index into the matrix based on which distances smaller than our threshold.
+
+```{r}
+similar.pairs <- which(stats.similarity < threshold, arr.ind = TRUE)
+head(similar.pairs)
+```
+
+From the `which` function, we have dataframe that tells us the exact index in the matrix for values that are smaller than our threshold. We can provide this to our graph to say that we want to draw an edge between the node called in the first column and the node called in the second column.
+
+```{r}
+edges.to.add <- as.vector(t(similar.pairs))
+head(edges.to.add)
+```
+
+We have to do a little manipulation magic because what the *igraph* function `add_edges` wants is for us to provide a vector of the nodes to connect. If we provide this function with the following vector: `c(1, 2, 3, 4)` it will interpret this as instructions to draw an edge from node 1 to node 2, then node 3 to node 4.
+
+```{r}
+auto.graph <- add_edges(auto.graph, edges.to.add)
+plot(auto.graph)
+```
+
+We can pass additional settings to the plot function to display our graph in different layouts.
+
+```{r}
+plot(auto.graph, layout = layout_in_circle)
+```
+
+**Task**: right now this graph does not have any attributes associated with the nodes/vertices besides the name of the cars. Use the `set.vertex.attribute()` function to add other features of these cars such `cylinders` to these nodes.
+
+```{r}
+# Your code here
+```
+
+```{r}
+plot(auto.graph, layout = layout_in_circle, vertex.color = labels)
+```
+
+You can color nodes in a graph based on their attributes. After you have added another attribute to the nodes in this graph, you can change the code above to color by that attribute to see how the parameter varies across the graph.
+
+```{r}
+auto.graph <- set.vertex.attribute(auto.graph, name = "mpg", index = V(auto.graph), value = Auto.short$mpg)
+plot(auto.graph, vertex.color = get.vertex.attribute(auto.graph, name = "mpg", index = V(auto.graph)))
+```
+
+**Task**: Add other attributes to the nodes in this graph and color by those attribute(s). What patterns (if any) does this let you see? Discuss with a programming buddy.
+
+```{r}
+# Your code here
+```
+
+*Your response here*
+
+------
+
+#### Analyzing a Given Graph
+
+This library has some built-in functions that allow you to perform graph analysis techniques.
+
+```{r}
+print(save.graph2)
+```
+
+For example, a minimum-spanning tree creates connections between all nodes that leads to the shortest path that connects all nodes together.
+
+```{r}
+save.graph3 <- mst(save.graph2, weights = NULL, algorithm = NULL)
+plot(save.graph3)
+```
+
+Sometimes we want to see the different communities or cliques within a larger network. There are many algorithms that can identify those communities with one demonstrated below. See `help(cluster_edge_betweenness)` for more information. 
+
+```{r}
+graph.communities <- cluster_edge_betweenness(save.graph2)
+plot(graph.communities, save.graph2) # overlay clusters found on top of the original graph
+```
+
+If you want to analyze the graph to find nodes that may be important, you can try calculating the hub score or look at the degree of the node, which reflects how many connections the node has. We will display them with `barplot`, check what the `barplot` function does using `help`.
+
+```{r}
+graph.hubs <- hub.score(save.graph3)$vector
+par(mfrow = c(2, 1))
+barplot(graph.hubs, names.arg = V(save.graph3), cex.names = 0.5, las = 2)
+barplot(degree(save.graph3), names.arg = V(save.graph3), cex.names = 0.5, las = 2)
+```
+
+**Task**: Investigate the nodes that have the highest degree/hub score and the lowest degree/hub score. How do those match up with the visualization of the graph itself? Discuss with a programming buddy.
+
+*Your response here*
+
+------
+
+#### Graph Exercises
+
+* Practice applying graph networks to new datasets (e.g. the dog kennel data) using *igraph* library in R.
+* Write up and interpret results of graph analysis.
+
+We can load in our dog kennel data as a starting point for making our graph.
+
+```{r}
+save.data <- read.csv("dog_data.csv", header = TRUE, stringsAsFactors = FALSE)
+save.data$Breed <- as.factor(save.data$Breed)
+save.data$Personality <- as.factor(save.data$Personality)
+save.data$Sex <- as.factor(save.data$Sex)
+str(save.data)
+```
+
+**Task**: Generate a graph where each node represents a different dog. Try to incorporate several different aspects of each dog as vertex attributes. Be sure to include `ReviewScore` as one attribute. Feel free to share your code with a programming buddy to make a more complete graph.
+
+```{r}
+# Your code here
+```
+
+**Task**: Draw edges in this graph based on whether dogs like each other or not. That is, draw a directed edge (an arrow) between every dog that likes another dog.
+
+```{r}
+# Your code here
+```
+
+**Task**: Try visualizing your graph to see different communities/cliques in the network. You can overlay the attribute of `ReviewScore` to color the nodes in the network. What patterns do you notice in who gives high reviews or low reviews? Discuss your observations with your programming buddy.
+
+```{r}
+# Your code here
+```
+
+*Your response here*
