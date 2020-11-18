@@ -1,0 +1,720 @@
+---
+title: "Day 4 Programming Lab"
+author: "Clark"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Regression and Classification
+
+The code presented in this lab was loosely adapted from *An Introduction to Statistical Learning with Applications in R* by James *et al.* This particular programming lab draws from Lab: Linear Regression (3.6) and Lab: Logistic Regression (4.6) in ISLR.
+
+**Learning Goals:**
+
+* Apply simple linear regression and interpret the relationship between the target variable (outcome) and the single predictor according to its coefficient.
+* Apply multiple linear regression and extend our interpretation to multiple predictors and multiple coefficients.
+* Compare and contrast between linear regression models according to their measured error.
+* Explore the use of other atypical predictors such as interaction terms, non-linear terms, and qualitative predictors.
+* Apply logistic regression to classification problems and interpret the roles of the predictors in calculating the probability of one class over another.
+* Express the sensitivity and specificity of a model using ROC plots to compare the accuracy of a given model to another.
+
+**Instructions:** Everywhere you see the **Task** prompt, please be sure to write in your code or response underneath the prompt. Be sure that the code is able to execute completely and that the result you expect is shown in the resulting html file.
+
+------
+
+#### Simple Linear Regression
+
+Training a linear regression model requires that we identify what our target variable (outcome) is that we are trying to predict and what other information or variables will be used to create those predictions.
+
+```{r}
+library(MASS)
+library(ISLR)
+```
+
+We will practice predicting housing prices from the `Boston` dataset using other variables measured on each house for sale.
+
+```{r}
+?Boston
+head(Boston)
+colnames(Boston)
+dim(Boston)
+#Here we print out the first few values. We have printed the column names
+#Dimensions - 506 houses, 14 factors
+```
+
+You can investigate this data using `help(Boston)` to better understand the measurements taken on each house.
+
+```{r}
+lm.fit <- lm(formula = medv ~ lstat, data = Boston)
+?lm
+?medv ~ lstat
+#This uses lstat to model medv?
+```
+
+**Task**: What is the significance of the `formula` parameter in the `lm` function? You can investigate the `lm` function using `help`. What is the relationship between `medv` and `lstat` in the modeling that is being done?
+
+*Your response here*
+
+Formula refers to an object that is...well a formula.
+Medv is the x factor or predictor, lstat is the y outcome
+Tilde - separates left and right hand sides in model formula.
+
+
+```{r}
+summary(lm.fit)
+#Gives boxplot data, intercept data + t/p/z values, r2 value.
+```
+
+**Task**: What is the significance of the coefficients in this fitted model? What is the meaning of the numbers under `(Intercept)` and `lstat`? Check your thoughts with a programming buddy.
+
+*Your response here*
+y = b0 + b1x
+b0 = intercept ~ 34.553. Standard error is very small relative to estimate. t value is far away from 0, so little chance of 0 correlation.
+lstat = b1 = slope ~ -0.950. Again, the confidence interval should be good.
+
+We can check what the coefficient is for our single predictor and the confidence interval of this coefficient. You can investigate the `confint` function using `help`.
+
+```{r}
+coef(lm.fit)[2] 
+#value of b1 at x = 2
+confint(lm.fit)
+?confint
+#Confidence interval -> confint()
+#I noticed that averaging the values under 2.5 and 97.5% will produce the same estimates as the prior exercise.
+#Percentages are by default
+```
+
+**Task**: How would you interpret the coefficient for `lstat` and its significance in the model based on this confidence interval?
+
+*Your response here*
+lstat is the slope and it's slightly negative. It is the average of the two endpoints/limits of the confidence interval.
+
+We can test housing prices for a provided `lstat` value using our model `lm.fit`. You can investigate the `predict.lm` function using `help`.
+
+```{r}
+?predict.lm
+#Predict method for Linear Model fits.
+predict(lm.fit, data.frame(lstat = c(5, 10, 15)), interval = "confidence")
+```
+
+**Task**: What is the meaning of these three rows of observations? Note that we asked for the "confidence" interval in our `predict` command.
+
+*Your response here*
+For each lstat value, we predict a certain fitted value using the line of best fit and we also show the confidence interval (lower and upper) for each point on this line. On a graph, it may look like three parallel lines.
+
+
+**Task**: Check what value of `medv` you would get for different values of `lstat` of your choosing by adapting the above code. Compare your findings with a programming buddy.
+
+```{r}
+# Your code here
+
+predict(lm.fit, Boston$mdev, interval = "confidence")
+?predict
+```
+
+We can visualize the relationship between `lstat` and `medv` by plotting these variables against each other and overlaying our linear regression model on top.
+
+```{r}
+plot(Boston$lstat, Boston$medv, pch = 20)
+abline(lm.fit, lwd = 3, col = "red")
+#lm.fit is the model behind the line. lwd points to the width of the line
+?abline
+#Add straight line to a plot 
+```
+
+**Task**: How would you describe this dataset based on this view of the data points? Talk about this graph with a programming buddy. Do you think this model is a good fit for the data? Why or why not?
+
+*Your response here*
+Overall, the line represented the data points well. A few outliers existed in the 0<x<10 and x>30 domains but you can clearly see that the line did not overfit the data and corresponded with the desnity and contour of data structure.
+
+```{r}
+par(mfrow = c(2, 2))
+plot(lm.fit, cex = 0.5)
+?plot
+#cex refers to size of data points
+```
+
+When you apply the default `plot` function to a linear model output from `lm`, then it automatically uses the `plot.lm` function that you can check with `help`. The output of `plot.lm` shows several aspects that help you assess the fit of the linear model. Refer back to your *ISLR* reading which describes some of these properties that are being plotted here.
+
+```{r}
+?plot.lm
+#Plot diagnostics for an lm object -> often a plot of residual against the little values.
+plot(predict(lm.fit), residuals(lm.fit), pch = 20, col = "blue")
+plot(hatvalues(lm.fit), pch = 20, col = "blue")
+?hatvalues
+#Regression deletion diagnostics
+#We see from the first graph that a lot of residuals are within a range of 0, which means the model accurately predicts many of the data points. However, points between 0<x<10 and x>30 still struggles to match the linear regression. This may suggest that we need a more flexible model.
+```
+
+These plots similarly show how good of a fit the model is for all values, moving from left to right along the fitted line. You can use `help(hatvalues)` to check what the `hatvalues` function does and `help(residuals)` to check what the `residuals` function does.
+
+**Task**: Try generating a different model to see if you can predict a different variable from another variable. Compare what you get with a programming buddy who may have trained a different model.
+
+```{r}
+# Your code here
+new.lm.fit <- lm(formula = age ~ nox, data = Boston)
+summary(new.lm.fit)
+confint(new.lm.fit)
+plot(Boston$nox, Boston$age, pch = 20) + abline(-29.988, 177.688, lwd = 5, col = "red")
+plot(new.lm.fit, lwd = 3, col = "red")
+plot(predict(new.lm.fit), residuals(new.lm.fit), pch = 20, col = "blue")
+plot(hatvalues(new.lm.fit), pch = 20, col = "blue")
+
+```
+
+------
+
+#### Multiple Linear Regression
+
+The `Boston` dataset contains more measurements besides the `lstat` parameter that may help us make a better prediction of the housing price. We can incorporate numerous measurements into our model using multiple linear regression.
+
+```{r}
+lm.fit <- lm(medv ~ lstat + age, data = Boston)
+#This uses lstat and age to predict medv.
+summary(lm.fit)
+```
+
+**Task**: Based on this model and its coefficients, what is the relationship between `medv`, `lstat`, and `age`? Discuss with a programming buddy.
+
+*Your response here*
+There seems to be a strong relationship between lstat and medv, but age does not correlate much with medv. This is seem in its low coefficient, close-to-zero t value, and its relatively high p value.
+
+```{r}
+lm.fit <- lm(medv ~ ., data = Boston)
+summary(lm.fit)
+```
+
+**Task**: In the formula part of the `lm` function, what does it mean to have a formula that uses a period (.)?
+
+*Your response here*
+
+By leaving it open and only filling with a period, we look at the every factor's relationship with medv and the statistics of accuracy if all are considered while developing a model for medv.
+
+**Task**: What is the meaning of a negative or positive coefficient for each variable? What does it mean for a variable to be significant? What kind of coefficient value does a variable have if it is not significant? Check your understanding with a programming buddy.
+
+*Your response here*
+Since we are looking at linear regression, if the coefficient is positive/negative it means the factor will have a positive/negative linear relationship with medv. If a factor has a coefficient close to zero, there probably isn't a huge relationship between the factor in question and the medv variable. Similarly, if standard error introduces "0" into the range of possible coefficients, one cannot rule out the null hypothesis.
+
+There are numerous ways to tweak the formula you set up in the `lm` function. One way to set up a formula with a minor change is to use the `-` sign or operator when establishing your formula.
+
+```{r}
+lm.fit1 <- lm(medv ~ . - age, data = Boston)
+summary(lm.fit1)
+?lm
+```
+
+**Task**: In the formula part of the `lm` function, what does it mean to have a formula that uses a minus sign (e.g. `- age`)?
+
+*Your response here*
+The use of the minus sign indicates that we do not consider age as a relevant factor. As we can see, this dramatically changes how the new equation is formed, as nox and rm suddenly appear as much more promising correlating factors with medv. This also indicates the possibility that age is correlated with nox or rm and previously produced a synergy/interaction effect.
+
+```{r}
+lm.fit1 <- update(lm.fit, ~ . - age)
+summary(lm.fit1)
+?update.formula
+```
+
+**Task**: Investigate what the `update` function does. You may want to check `help(update.formula)`.
+
+*Your response here*
+Like its name suggests, it updates a model to make it better, more interpretable or more accurate.
+
+**Task**: Try to create a model that instead predicts `crim` using all other variables. How do you interpret the results? Discuss with a programming buddy.
+
+```{r}
+# Your code here
+lm.fit2 = update(lm.fit, ~ . -crim)
+summary(lm.fit2)
+```
+
+*Your response here*
+Here we use minus crim to consider all factors other than criminal. I think here, nox has the greatest (absolute value) coefficient of all, so it would be the biggest contributing factor. This model has approximately the same r^2 value as the previous, both at around 0.7, which is already very good considering that this is, after all, a not-too-flexible linear regression.
+------
+
+#### Interaction Terms
+
+Sometimes the combined information from how two predictors interact may have a strong predictive vale in your model. You can create interaction terms using the two variable names joined by a `*` operator. Please note that `*` by default includes each term alone and their interaction as predictors.
+
+```{r}
+summary(lm(medv ~ lstat * age, data = Boston))
+?Boston
+#By inserting the star symbol, we consider the impact of both factors together, as well as individually. At the same time, we do not discuss the other factors.
+```
+
+**Task**: Discuss with a programming buddy what is the importance of looking at interaction terms. Why might `age` alone not be an informative variable, but the interaction between `lstat` and `age` does add information?
+
+*Your response here*
+
+age and lstat are both factors to Boston housing value. Medv is the median value in $1000s. Age means the proportion of owner-occupied units built prior to 1940, and lstat means the lower status of the population (by percent). When we pair age and lstat together, we might be able to conclude that the lower status surrounding population has an effect on the Boston housing community. This community may indirectly make the community the house belongs in better or worse, and therefore affect the pricing.
+------
+
+#### Non-linear Transformations of the Predictors
+
+Linear models, as the name implies, usually create a literal linear formula where each predictor, multiplied by some coefficient, is added up to get the target value (i.e. here housing prices). However, sometimes linear values are not the best at predicting the outcome, so we can use transformations of these terms.
+
+```{r}
+#Transformation of linear values.
+lm.fit <- lm(medv ~ lstat, data = Boston)
+lm.fit2 <- lm(medv ~ lstat + I(lstat^2), data = Boston)
+#In the first one we use lstat to predict medv. In the second, we still use lstat as the sole factor but we consider lstat^2 as a second multiplier to better the result of the linear model.
+?I
+#I function changes the class of an object to treat as is.
+summary(lm.fit)
+summary(lm.fit2)
+print(anova(lm.fit, lm.fit2))
+?anova
+#Anova tables compute analysis of variance tables for one or more fitted model objects. It tests whether the model terms are significant. 
+```
+
+Here we try using `lstat` plus a transformation of `lstat` where it is taken to the second power. We can plot their errors and compare their performance across the values of `medv`.
+
+```{r}
+plot(predict(lm.fit), residuals(lm.fit), pch = 20, col = "blue")
+plot(predict(lm.fit2), residuals(lm.fit2), pch = 20, col = "blue")
+#In the first graph we used the factor once. In the second, we added a squared factor value.
+```
+
+**Task**: Why would using a variable squared be useful in a model? Does it seem appropriate for this data, why or why not? How do you know? You can check what the `anova` function does with `help`. Discuss with a programming buddy.
+
+*Your response here*
+If we look at the r squared value, we can see that using a variable squared did indeed improve the fit on a dataset. We can also see from anova the the p value dramatically decreased. Since p value points to significance, I feel that it is safe to say that adding a variable squared actually improves the relevance of both as factors or contributors.
+
+Rather than writing out each term taken to a different power, we can use the `poly` function as a shortcut to create these terms.
+
+```{r}
+?poly
+#Compute orthogonal polynomials
+poly(1:3, 3, raw = TRUE)
+```
+
+**Task**: Investigate what the `poly` function does. What arguments does it take?
+
+*Your response here*
+The poly function takes a numeric vector or matrix that we use to evaluate the polynomial. In this case, we set the matrix as three rows and 3 columns. Raw=true just means that we use raw and not orthogonal polynomials.
+
+Here is an example of using the `poly` function in action when creating a model with non-linear transformation terms.
+
+```{r}
+lm.fit5 <- lm(medv ~ poly(lstat, 5, raw = TRUE), data = Boston)
+#Here we use variable, variable squared, all the way to variable to the fifth power. This way we don't have to write everything down.
+summary(lm.fit5)
+```
+
+Similarly, we can use transformed terms that are not taken to the power, but are rather transformed with the logarithm.
+
+```{r}
+summary(lm(medv ~ log(rm), data = Boston))
+#Basically we can mathematically manipulate a certain set of factors
+```
+
+**Task**: Based on what you have seen of these models, which one seems to be the best model to use? How do you choose? Justify your choice to a programming buddy.
+
+*Your response here*
+The logarithm model clearly did not work as well as the considering a bunch of powers applied to a certain variable. This makes sense because I think that a model will generally be better fit if we consider more contributors, even if they can be derived from the same variable. I would use the latter for its high r squared value and low p value.
+------
+
+#### Qualitative Predictors
+
+Predictors do not have to be quantitative to be used in linear regression even though they are predicting a continuous variable. We will explore this option in a new dataset called `Carseats` that you can investigate with the `help` function.
+
+```{r}
+?Carseats
+#sales of child car seats.
+colnames(Carseats)
+head(Carseats)
+```
+
+**Task**: Discuss with a programming buddy, which of the following variables in the `Carseats` dataset are qualitative and which ones are quantitative?
+
+*Your response here*
+Quantitative: sales, competition price, income, advertising budget, population, price, age, education
+Qualitative: shelveLoc, urban, us (although the last two can be easily assigned to 0 and 1 for easier categorization, if needed)
+
+Here we create a linear model to predict carseats sales using all predictors plus some interaction terms. Please note that the `:` operator in this formula adds only the interaction term between the two predictors and not the predictors themselves (which are already included due to the inclusion of the period `.`).
+
+```{r}
+lm.fit <- lm(Sales ~ . + Income : Advertising + Price : Age, data = Carseats)
+#Here we consider all factors as contributors, with the addition of income/advertising interaction and price/age interaction.
+summary(lm.fit)
+```
+
+You may have noticed the inclusion of two predictors that were not in the original dataset, namely `ShelveLocGood` and `ShelveLocMedium`. These are dummy variables created for a qualitative predictor, `ShelveLoc`. You can see how this variable is encoded using the `contrasts` function.
+
+```{r}
+contrasts(Carseats$ShelveLoc)
+#It alters the qualitative data of bad/good/medium into something quantifiable.
+```
+
+This table implies that each carseat can be flagged as 1 or `True` for a good or medium location, and the absence of both as `True` implies a bad shelving location.
+
+**Task**: Discuss with a programming buddy, how would you interpret the results of this model? How does the category of shelving location affect the prediction?
+
+*Your response here*
+
+The results of this model is very promising, with a great r squared score around 0.87. Shelving location clearly is a huge contributor to the linear model - especially with their low standarde error, high t score (ruling out possibility of null hypothesis), and extremely small p value. 
+
+------
+#### Linear Regression Exercises
+
+* Create linear regression model on another dataset.
+* Write up hypotheses and results of regression model analysis.
+* Share and compare results/interpretations with peers.
+
+Find another dataset with a quantitative outcome that you can predict using the other variables. You can access a list of built-in R datasets using `data()` within the R console.
+
+For the below steps, you are encouraged to work with a programming buddy.
+
+**Task**: Choose a dataset and identify an output/target variable. Train a model to learn to predict this variable using one (simple linear regression) or multiple predictors (multiple linear regression).
+
+```{r}
+# Your code here
+library(xlsx)
+titanic_data <- read.xlsx("c:/titanic_data", 1)
+read.csv("titanic_data.csv" )
+load(data = "titanic_data.csv")
+titanic_data
+colnames(titanic_data)
+titanic.lm.fit <- lm(fare ~ poly(age, 5, raw = TRUE), data = titanic_data)
+
+```
+
+**Task**: Analyze your model and interpret the meanings of the coefficients for the predictor(s). What is the relationship between these variables?
+
+```{r}
+# Your code here
+summary(titanic.lm.fit)
+anova(titanic.lm.fit)
+#We can clearly see that the estimates are not dependable (looking at standard error) and that there may not be any correlation or significance at all. In other words, the age of a passenger does not dictate the fare (and thereby, the wealth or status) of a passenger. This makes sense because a rich family will afford costly tickets for the infants and the grandparents.
+```
+
+*Your response here*
+
+**Task**: Train a different model to predict the same target variable, but either using more or fewer predictors than your first model. Compare the accuracy (the amount of error) of these models. Which model performs better?
+
+```{r}
+# Your code here
+titanic_data[1] = -(titanic_data[1])
+head(titanic_data)
+
+class(ticket_class_mod)
+titanic.lm.fit2 <- lm(fare ~ ticket_class, data = titanic_data)
+plot(titanic.lm.fit2)
+summary(titanic.lm.fit2)
+
+?lm
+
+```
+
+*Your response here*
+I tried using ticket class to predict the fare of the ticket. The result surprised me a little - I thought that more expensive tickets would lead to a generally better ticket class. Then I realized that ticket class 1 is the best, but numerically the smallest, so I must manipulate the data in a different way.
+
+After I manipulated the data (turning 1,2,3 into -1,-2,-3 to reflect a different order), I realized that it still did not show a strong correlation. After some thought, it made sense. This was because even within the same ticket class different types and qualities of cabins were at different costs. This can especially be seen in the residual/fitted graph.
+
+As a result, we can conclude the ticket_class is not a good predictor of fare, either.
+
+------
+
+#### Logistic Regression
+
+In contrast to linear regression, logistic regression (despite having a similar and somewhat confusing name) is used to predict the class or label of a given observation. While linear regression uses information from the predictor(s) to calculate a guess for the value of a quantitative/continuous outcome, logistic regression uses predictors to calculate a probability. This probability represents the likelihood that the observation belongs in one group over another. We generally cut that threshold for classification/assignment of group at about 50%.
+
+We will explore an application of classification via logistic regression from stock market data that you can learn more about with `help(Smarket)`. You will want to check the significance of variables such as `Lag1` through `Lag5` and `Volume`.
+
+```{r}
+library(ISLR)
+dim(Smarket)
+head(Smarket)
+summary(Smarket)
+```
+
+Here we check the overall correlations between all columns except for the last non-quantitative column `Direction`. Please note that a complete lack of correlation is closer to 0 and a perfect correlation is 1.
+
+```{r}
+cor(Smarket[, -9])
+?cor
+#Measures correlation
+```
+
+**Task**: What is the significance of this correlation analysis? What do you notice about these correlation values and what they say about the relationship between the variables?
+
+*Your response here*
+Using the correlation function, we get a chart-like set of values. The intersection between the same two sets of values is naturally 1. Other than that, the most obvious correlations would be between Volume and year (at about 0.53) All others are close to 0.
+
+We can also look at how the parameter `Volume` (number of daily shares traded in billions) changes across time since this dataset is organized chronologically from the top row to the bottom row.
+
+```{r}
+plot(Smarket$Volume, pch = 20)
+```
+
+When we fit a logistic regression, we instead use the `glm` function that you can research using `help(glm)`. Here we train a model to try to predict the direction of the stock market using several other parameters in the dataset.
+
+```{r}
+?glm
+?Smarket
+head(Smarket)
+glm.fit <- glm(Direction ~ Lag1 + Lag2 + Lag3 + Lag4 + 
+               Lag5 + Volume, data = Smarket, family = binomial)
+#Family argument describes error distribution.
+summary(glm.fit)
+```
+
+**Task**: Why do we set the `family` argument in the `glm` function to `binomial`? Investigate what the `glm` function does and the settings that it takes.
+
+*Your response here*
+We set the family argument in glm function to binomial to make the link = "logit". According to the text, we know that logit, or log-odds, helps us calculate probability.
+This glm function uses factors to predict "direction" (down or up)
+
+You can see the values of the coefficients for each predictor above and we can also extract them from the summary to view isolated from the other model information.
+
+```{r}
+summary(glm.fit)$coef
+```
+
+**Task**: Discuss with a programming buddy, how would you interpret this model based on the estimated coefficients and the significance of each variable?
+
+*Your response here*
+
+I found it very interesting that the lag 1-5 have almost diminishing returns in terms of how much they predict positive/negative direction of the stock market. This could make sense because the percentage return 5 days ago is simply not as timely/relevant as the one yesterday.
+Volume remains as the primary predictor (although also subject to a lot of error).
+
+Now that we have trained a model, we can assess its accuracy. Unlike with linear regression, we are not going to calculate a quantitative error (the distance between our predicted target value and the real target value) for each observation. Instead, we can figure out the accuracy of our assignments where we might guess a label for each observation but be wrong a certain fraction of the time.
+
+```{r}
+glm.probs <- predict(glm.fit, type = "response")
+?predict
+head(Smarket)
+head(glm.probs)
+```
+
+**Task**: What does the variable `glm.probs` represent here? You may want to check our usage of the `predict` function and the fact that we ask for `type = "response"` as a setting. Discuss your thoughts with a programming buddy.
+
+*Your response here*
+glm.probs represents the probability of a certain day's market going up or down.
+Here we try and figure out if it's up or down. So each resulting number reflects a probability the market of a certain day will go a certain way (say, we set 0 as down and 1 as up). That means on a day where glm.probs < 0.5 it's safer to bet it's going to head down.
+When we use type = "response" it returns predicted probabilities
+
+
+```{r}
+contrasts(Smarket$Direction)
+#Yay I guessed correctly.
+```
+
+For our classification paradigm, we can check using the `contrasts` function again to set up which group is which. That is, we can see that the default is to define the groups as Down when the probability of being Up is too low.
+
+We set up our code to do this below, where we by default set all of our predictions to being `"Down"` unless the probability is greater than 50%. In that case, the value for that observation is changed to `"Up"`.
+
+```{r}
+glm.pred <- rep("Down", 1250)
+#Pre-setting all predictions to Down then changing when variable calculations contradicts the default.
+glm.pred[glm.probs > 0.5] <- "Up"
+table(glm.pred, Smarket$Direction)
+```
+
+**Task**: Look at how the predictions compared to the actual directions of the stock market. Do you think the model does a good job? How did you decide? Discuss what this table shows with a programming buddy.
+
+*Your response here*
+Rows represent the predictions. That means we correctly predicted there to be 145/286 to go down and that we correctly predicted 507/964 to go up. These predictions have an accuracy above 50%, which is a little better than guessing, but far from perfect.
+
+
+Another way to express the value of this model is to see on average, how often the prediction matches the reality.
+
+```{r}
+mean(glm.pred == Smarket$Direction)
+```
+
+**Task**: Again, do you think the model does a good job? Discuss with a programming buddy.
+
+*Your response here*
+Again, the model does better than guessing, but only slightly. Over a long enough time frame, use of model will certainly make a difference.
+
+In reality when we make predictions on the stock market, our goal would be to use historical (past) data to predict the later behavior of the stock market. Thus, we should try to train the model on prior years (let's say pre-2005) to predict stock direction in later years (i.e. 2005).
+
+```{r}
+train <- (Smarket$Year < 2005)
+#This isolates testing data.
+Smarket.2005 <- Smarket[!train, ]
+head(Smarket.2005)
+```
+
+Here we have set aside the data for the stock market in/after 2005. Now we train the model on pre-2005 data and test how well it classifies stock market direction on the 2005 data.
+
+```{r}
+Direction.2005 <- Smarket$Direction[!train]
+#These are the correct 'answers'
+glm.fit <- glm(Direction ~ Lag1 + Lag2 + Lag3 + Lag4 + Lag5 + 
+               Volume, data = Smarket, family = binomial, subset = train) # note this use of subset to train on only part of the data!
+glm.probs <- predict(glm.fit, Smarket.2005, type = "response")
+#These are, again, the predictions.
+glm.pred <- rep("Down", 252)
+#We again set default for all 252 predictions to one choice.
+glm.pred[glm.probs > 0.5] <- "Up"
+#We then edit based on the model
+table(glm.pred, Direction.2005)
+mean(glm.pred == Direction.2005)
+?Smarket
+```
+
+**Task**: Look at how the predictions compared to the actual directions of the stock market. Do you think the model does a good job now in predicting values for 2005? Why or why not?
+
+*Your response here*
+The model actually did poorer than simply guessing, at only 48% accuracy. This is likely because of 1) overfitting or 2) more variability in the stock market. I'm using the 2008 economic depression as an extreme example not included in the data set, but I feel it illustrates my point well - you cannot predict where the economy is headed from 5 days of previous data. You would likely also need to know about international trade, politics, etc., etc.
+
+We can explore how well our model performs if we change the model to use different numbers of predictors. Generally speaking, our intuition may say that using less information will make our model perform worse but we can see if that turns out to be true here.
+
+```{r}
+glm.fit <- glm(Direction ~ Lag1 + Lag2, data = Smarket,
+               family = binomial, subset = train)
+glm.probs <- predict(glm.fit, Smarket.2005, type = "response")
+glm.pred <- rep("Down", 252)
+glm.pred[glm.probs > 0.5] <- "Up"
+table(glm.pred, Direction.2005)
+mean(glm.pred == Direction.2005)
+```
+
+**Task**: Look at how the predictions compared to the actual directions of the stock market. Do you think the model does a good job now in predicting values for 2005? Why or why not? Is this model better or worse than the prior model? Share your thoughts with a programming buddy.
+
+*Your response here*
+The model does a much better job at predicting values now (for 2005, at least). I think this narrows down the issue of the previous model to overfitting. If the model was overly affected by lag3/4/5 then it may not be able to account for the variation in testing data not included in the training data.
+------
+
+```{r}
+print(mtcars)
+lm.fit = lm(data = mtcars, mpg ~ hp)
+summary(lm.fit)
+
+lm.fit = lm(data = mtcars, mpg ~ hp + cyl + wt)
+summary(lm.fit)
+
+#Notice how weight supersedes the significance of horsepower.There is a negative relationship. Generally speaking, more information will lead to better training (unless it's all unrelated)
+```
+
+#### Receiver Operating Characteristic (ROC) Curve Plots
+
+```{r}
+library(ROCR)
+```
+
+One great way to summarize the value of a model is using a ROC curve plot. Here I provide some additional code, specifically a custom function, to facilitate drawing these curves on a given logistic regression model.
+
+```{r}
+rocplot <- function(pred, truth, ...) {
+   predob <- prediction(pred, truth)
+   perf <- performance(predob, "tpr", "fpr")
+   plot(perf, ...)
+}
+?prediction
+#Standardize
+?performance
+#Performs function. It defines a few variables and plots the graph.
+```
+
+We will check model performance on a different classification problem, using the Caravan dataset that we can investigate using `help(Caravan)`. This data indicates whether customers purchased insurance based on many factors about the customer and the product itself. We first scale those features so they can contribte equally to the model and then we just take the first 1000 observations to set aside as test data (that we will assess the accuracy of our model on).
+
+```{r}
+?Caravan
+#Contains 5822 real customer records of 86 variables about socio-demographic data and product ownership.
+Caravan[1:5, 1:5]
+standardized.X <- scale(Caravan[, -86]) 
+test <- 1:1000 #Set testing range
+train.X <- standardized.X[-test, ] # isolate predictors for training data
+test.X <- standardized.X[test, ] # isolate predictors for testing data
+train.Y <- Caravan$Purchase[-test] # isolate outcome for training data
+test.Y <- Caravan$Purchase[test] # isolate outcome for testing data
+set.seed(1)
+glm.fit <- glm(Purchase ~ ., data = Caravan, family = binomial,
+               subset = -test) # use only train data, not test to train the model
+summary(glm.fit)
+```
+By looking at the console, we can see that only MGEMLEEF, PPERSAUT, PLEVEN, PBRAND, ALEVEN, and APLEZIER are significant contributors.
+
+As you can see, some of these predictors are significant and contribute to our prediction of a customer going through with a purchase. We can then assess the accuracy of the model making predictions on the separate test data.
+
+```{r}
+glm.probs <- predict(glm.fit, Caravan[test, ], type = "response")
+#We set probability as a prediction based on the model we trained with the testing data set.
+glm.pred <- rep("No", 1000)
+#We default everything to "No"
+glm.pred[glm.probs > 0.5] <- "Yes"
+table(glm.pred, test.Y)
+```
+
+By looking at this table, we know that the model predicts negative "No" values quite accurately but has had no correct guesses with the rarer positive "Yes" value. This may because there weren't enough "Yes" values in the training set either.
+
+We have been defaulting to a cut-off threshold of 50% to assign yes in a customer purchase, but we can also try varying this threshold to prefer more towards Yes or No. For example, we can make the threshold 25% and see how accurate we are. This change might be a good move as you will notice in the prior table, the model never correctly guesses Yes for all of the test cases of Yes so maybe we should make it so that a Yes assignment pops up more frequently.
+
+```{r}
+glm.pred <- rep("No", 1000)
+glm.pred[glm.probs > 0.25] <- "Yes"
+table(glm.pred, test.Y)
+```
+Here, we sacrificed the accuracy for "No" separation  predictions to significantly gain some accurate "Yes" predictions. This tells us that the 0.5 separation point is not always right. ROC curve helps us find a more accurate and flexible threshold(?)
+
+The ROC curve is a way to test across the board how varying the threshold makes the model more sensitive and specific. Ideally we want a model that is 100% at both, but varying the threshold tends to prefer one over the other. The closer a ROC curve falls in the upper left corner, the better it performs as a whole.
+
+```{r}
+fitted.train <- predict(glm.fit, Caravan[-test, ], type = "response")
+fitted.test <- predict(glm.fit, Caravan[test, ], type = "response")
+#Both "fitted" variables are probability based on the trained model using the training data.
+par(mfrow = c(1, 2))
+rocplot(fitted.train, train.Y, main = "Training Data", col = "blue")
+rocplot(fitted.test, test.Y, main = "Test Data", col = "blue")
+```
+
+**Task**: How does the performance of this model compare on the training dataset vs. on the test dataset? Is this what you expect? Discuss with a programming buddy.
+
+*Your response here*
+I did some extra research: the closer the curve is to the top left corner, the more accurate the test. The closer the curve is to 45% linear regression, the less accurate. In other words, we want true positive rate to be as high as possible. Here the model is infavorable for both the training and the test data sets, but it performs a little worse on the latter, which could be expected as overfitting or lack of a certain data type might further cause inaccuracies in predictions.
+
+To pick the optimal threshold for separating the data into Yes/No, we want to maximize both the sensitivity (the "lack" of false positive) and the specificity (the "abundance" of true positive). In this case, that would be around 0.3.
+
+```{r}
+glm.pred <- rep("No", 1000)
+glm.pred[glm.probs > 0.3] <- "Yes"
+table(glm.pred, test.Y)
+#Results:
+#glm.pred  No Yes
+     #No  928  51
+     #Yes  13   8
+```
+------
+
+#### Classification Exercises
+
+* Create logistic regression model on a different dataset.
+* Write up hypotheses and results of classification model analysis.
+
+Find another dataset with a qualitative outcome that you can predict using the other variables. You can access a list of built-in R datasets using `data()` within the R console.
+
+For the below steps, you are encouraged to work with a programming buddy.
+
+**Task**: Choose a dataset and identify an output/target variable that is qualitative (two classes or categories). Train a model to learn to classify new observations using the other variables as predictors. 
+
+```{r}
+# Your code here
+```
+
+**Task**: Analyze the overall error of your model using a table and/or a calculation of the accuracy of its classification.
+
+```{r}
+# Your code here
+```
+
+**Task**: Interpret the meanings of the coefficients for the predictor(s). What is the relationship between these variables and the classification they give a new observation?
+
+```{r}
+# Your code here
+```
+
+*Your response here*
+
+**Task**: Train a different model to make the same classification, but either using more or fewer predictors than your first model. Compare the classification accuracy of these models using ROC curves. Which model performs better?
+
+```{r}
+# Your code here
+```
+
+*Your response here*
