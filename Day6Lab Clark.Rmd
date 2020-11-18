@@ -1,0 +1,344 @@
+---
+title: "Day 6 Programming Lab"
+author: "Clark"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Tree Models
+
+The code presented in this lab was loosely adapted from *An Introduction to Statistical Learning with Applications in R* by James *et al.* This particular programming lab draws from Lab: Decision Trees (8.3) in ISLR.
+
+**Learning Goals:**
+
+* Apply classification and regression trees, and interpret how a new data point would navigate through the tree to arrive at a prediction.
+* Analyze the contribution of different predictors as branch point within the tree.
+* Differentiate bagging, random forests, and boosting both in programming application and in modeling concepts.
+* Interpret the relative importance of predictors in contributing information that helps improve prediction accuracy across many trees.
+* Distinguish the benefits of a non-linear model like a tree model compared to a linear model like linear regression/logistic regression.
+
+**Instructions:** Everywhere you see the **Task** prompt, please be sure to write in your code or response underneath the prompt. Be sure that the code is able to execute completely and that the result you expect is shown in the resulting html file.
+
+**Please note this lab and tomorrow's lab have been made shorter to give you more time to work on your final project.**
+
+------
+
+#### Fitting Classification Trees
+
+We will again revisit the `Carseats` dataset to train a classification tree. Before we investigated sales of carseats, which was a continuous quantitative variable. To do classification, we need to look at a categorical or class variable which we will create in this dataset using the `Sales` column.
+
+```{r}
+library(tree)
+library(ISLR)
+head(Carseats)
+High <- ifelse(Carseats$Sales <= 8, "No", "Yes")
+?ifelse
+#Conditional Element Selection. There's a test and returns values for yes and no. In this case, if sales is less then eight, then returns NO.
+head(Carseats$Sales)
+head(High)
+```
+
+**Task**: What does the `High` variable that we created contain? What does the `ifelse` function do? Use `help(ifelse)` to check. Discuss your thoughts with a programming buddy.
+
+*Your response here*
+The High variable contains information of whether or not sales exceeded 8. The ifelse function is basically a test for a data set and it tells you what to return if something fulfills the test argument.
+
+We then merge this new variable `High` with our existing `Carseats` dataset and train a tree model using the `tree` function.
+
+```{r}
+?Carseats
+?tree
+carseats.temp <- cbind(Carseats[1:11], High)
+carseats.temp$High = as.factor(carseats.temp$High)
+tree.carseats <- tree(High ~ . - Sales, carseats.temp)
+class(High)
+summary(tree.carseats)
+
+```
+
+**Task**: Investigate what arguments the `tree` function takes and what it returns. Why do you think we did not include `Sales` as a predictor in the formula of the `tree` function?
+
+*Your response here*
+Tree function takes in a formula expression, a dataframe from which data points are selected to go through a model, and additional information depending on if one would like to aggregate. For example, one can include `subset` for the random forest method. We did not include sales because the variable High was directly derived from an expression that included Sales.
+
+**Task**: Discuss with a programming buddy what is shown in this summary of this tree model. What does it tell you about the model?
+
+*Your response here*
+It restates the formula used, lists the variables used for predicting High. It lists the number of nodes (in this case 27, which is quite a lot but reasonably so since it's an unpruned tree). It also tells us how accurate the model is.
+
+We can display the tree model as a tree diagram to better understand how classifications are done using this model. For each new observation, you would start at the top of the tree and depending on what is true of the data (e.g. is Price < 92.5), you would navigate to different branches. Ultimately, through a series of yes/no questions, you would arrive at a leaf on the tree that tells you whether the observation should be classified as `High = "Yes"` or `High = "No"`. 
+
+```{r}
+plot(tree.carseats)
+text(tree.carseats, pretty = 0, cex = 0.5)
+?text
+#What does pretty do?
+```
+
+**Task**: Talk through this model with a programming buddy. What does it tell you for what predictors influence whether a data point will be `High = "Yes"` or `High = "No"`?
+
+*Your response here*
+The most influential predictors would be at the top since this is a "greedy model." So the quality of the ShelveLoc, Price and advertising are three major deciding factor. Given these values, price can often decide whether a customer will ultimately buy the child car seat.
+
+Realistically if we are going to test if this is a good classification model, we should train it on a separate training dataset and assess it on a test dataset.
+
+```{r}
+#I fixed the code!
+set.seed(2)
+dim(carseats.temp)
+train <- carseats.temp[1:200,]
+test  <- carseats.temp[201:400,1:11]
+
+typeof(test)
+tree.carseats <- tree(High ~ .-Sales, data = carseats.temp)
+tree.pred <- predict(tree.carseats, newdata = test, type = "class")
+test  <- carseats.temp[201:400,1:12]
+#Reintroduce High into test.
+table(tree.pred, test$High)
+
+# ```{r}
+# set.seed(2)
+# train=sample(1:nrow(carseats.temp), 200)
+# carseats.temp.train = carseats.temp[train,]
+# High.train = High[train]
+# carseats.temp.test=carseats.temp[-train,]
+# High.test=High[-train]
+# tree.carseats=tree(High.train ~ . - carseats.temp.train$Sales,carseats.temp.train,subset=train)
+# typeof(tree.carseats)
+# tree.pred = predict(tree.carseats, newdata = test[, -"high"], type = "class")
+# table(tree.pred,High.test)
+# 
+# ```
+
+```
+
+**Task**: Discuss with a programming buddy, what is the specificity and sensitivity of this model? Do you think it is a good classifier, why or why not?
+
+*Your response here*
+This is a pretty good classifier. We can see that it predicts at about 90% accuracy for No and Yes.
+Sensitivity = tested positives/all positives (i.e true positive/true positive + false negatives) = 74/81 which is pretty good.
+Specificity = true negatives/true negatives + false positives = 106/119, which is pretty high as well.
+------
+
+#### Fitting Regression Trees
+
+We can easily apply tree models to regression problems where the model needs to calculate a quantitative outcome variable. We will bring back the `Boston` dataset and try to predict housing prices.
+
+```{r}
+library(MASS)
+set.seed(1)
+head(Boston)
+train <- sample(1:nrow(Boston), nrow(Boston) / 2)
+?sample
+head(train)
+#Setting a part of the data for training. Here it samples half of the total dataframe (choosing half of the total rows)
+tree.boston <- tree(medv ~ ., Boston, subset = train)
+#Using everything to predict medv. This uses the whole data set.
+summary(tree.boston)
+```
+
+We can again display the tree model as a tree diagram to better understand how this model arrives at a predicted value. Notice that each new observation would arrive at a leaf on the tree that gives a singular value for the housing price. As such, there are only so many quantitative values that a regression tree with limited branches can output.
+
+
+```{r}
+plot(tree.boston)
+text(tree.boston, pretty = 0)
+```
+
+**Task**: How would you navigate through this tree? What does it tell you about the contribution of each predictor? Discuss your interpretation with a programming buddy.
+
+*Your response here*
+rm is certainly a huge factor, since it's not only the subject of the first branch but also multiple others afterwards. By comparing the rm values with 6.9595 and 7.553, we can already learn about 2 of the 7 terminal nodes. lstat, crim, and age then have decreasing importance as factors.
+
+In contrast to classification trees, we assess the accuracy of this tree model by calculating the error, the distance between the predicted value from the tree model and the true value. Notice that on the `yhat` axis or the predicted value axis, there are only a few discrete values that the model has guessed.
+
+```{r}
+yhat <- predict(tree.boston, newdata = Boston[-train, ])
+#yhat is basically the unique predictions made.
+boston.test <- Boston[-train, "medv"]
+#all the "correct answers" of medv that is in the testing dataset.
+plot(yhat, boston.test, pch = 20)
+abline(0, 1, lwd = 3, col = "red")
+mean((yhat - boston.test)^2)
+#The value here is mean of squared residuals.
+```
+
+**Task**: Discuss with a programming buddy, what is the overall error of this tree model? Do you think it makes accurate predictions of housing prices, why or why not?
+
+*Your response here*
+I think the mean of squared residuals here is a little high (~35) considering the overall range of values for medv (0-50). This is mostly because tree models have limited terminal nodes and as a result, a lot of data with high variance will be grouped together to fir the bias-variance trade off. That's why a lot of houses of varying values all are predicted to be of the same value. Aggregated tree models would naturally improve the results. 
+------
+
+#### Bagging, Random Forests, and Boosting
+
+These techniques involve combining multiple trees to make a single prediction that is more accurate than a single tree model. The `randomForest` function can be used for random forest models and also bagging since bagging is essentially a random forest with `m = p` where `m` is the number of predictors considered at each split and `p` is the number of total predictors. That means all predictors are considered at each branchpoint, which is bagging by definition.
+
+```{r}
+library(randomForest)
+library(gbm)
+set.seed(1)
+ncol(Boston) # 14 columns minus one outcome variable (medv)
+bag.boston <- randomForest(medv ~ ., data = Boston, subset = train,
+                           mtry = 13, importance = TRUE)
+#The model knows that without medv only 13 variables will be tried at each split. It also knows that medv is quantitative so its type is regression, not classification.
+#Mean of square residuals is pretty low, and the amount of variance explained is very optimized.
+bag.boston
+```
+
+As you can see, this model trains 500 separate trees by default and creates a single model that averages across each of these individual trees. We can again calculate the amount of error on the test dataset.
+
+```{r}
+yhat.bag <- predict(bag.boston, newdata = Boston[-train, ])
+plot(yhat.bag, boston.test, pch = 20)
+abline(0, 1, lwd = 3, col = "red")
+mean((yhat.bag - boston.test)^2)
+```
+
+**Task**: Discuss with a programming buddy, what is the overall error of this tree model? Does it do a better job than the single regression tree?
+
+*Your response here*
+As we can see in the plot itself, since we graphed 500 separate trees and averaged them together we have many more possible y hat values and that dramatically improves the result.
+Mean of squared residuals is also lowered, despite the many outliers.
+
+If we set mtry to something other than 13 (the number of predictors available in the `Boston` dataset), then we will be training a random forest model instead.
+
+```{r}
+set.seed(1)
+rf.boston <- randomForest(medv ~ ., data = Boston, subset = train,
+                          mtry = 6, importance = TRUE)
+?randomForest
+#Importance will tell the computer whether or not to assess importance of predictors
+yhat.rf <- predict(rf.boston, newdata = Boston[-train, ])
+summary(yhat.rf)
+mean((yhat.rf - boston.test)^2)
+```
+
+**Task**: Discuss with a programming buddy, what is the overall error of this random forest model? Does it do a better job than the single regression tree or the bagging model?
+
+*Your response here*
+This decreased the mean residual squared even more because it varied the types of contributors and gave the less important ones a chance.
+
+Though these aggregate tree models are a little more difficult to interpret than a single tree model because we cannot just read and intrepret one decision tree, we can still look at how predictors contributed somewhat to the regression/classification prediction.
+
+```{r}
+varImpPlot(rf.boston) # visualize values from importance(rf.boston)
+#This will likely be a pretty important function for my project.
+```
+
+You can extract the exact numbers themselves using `importance(rf.boston)`. These two measures (`%IncMSE` and `IncNodePurity`) reported for each predictor shows how much each predictor contributes to making a better prediction of the outcome variable in this tree model. These quantities give you an intuition for how informative each variable is and its relationship to the outcome.
+
+**Task**: Interpret these plots, which variables are important for predicting house sale price? Check your understanding with a programming buddy.
+
+*Your response here*
+
+medv is clearly influenced by rm and lstat, which clearly contribute to a high node purity. Naturally, this would also mean that these major variables or factors are more prone to % standard error.
+
+For boosting, we instead use the `gbm` function. We choose the `distribution` parameter to match whether we are doing regression or classification. We train many different trees can also specify the number of possible splits per tree using `interaction.depth`.
+
+```{r}
+set.seed(1)
+boost.boston <- gbm(medv ~ ., data = Boston[train, ], 
+                    distribution = "gaussian", n.trees = 5000,
+                    interaction.depth = 4)
+?gbm
+#Gaussian means squared error.
+#Interaction depth determines the level of interaction variables. In this case, it assumes that up to four variables can be interrelated when predicting medv.
+boost.boston
+```
+
+We can calculate the MSE on the test dataset to compare with the performance of the other models we have tried.
+
+```{r}
+yhat.boost <- predict(boost.boston, newdata = Boston[-train, ], 
+                      n.trees = 5000)
+mean((yhat.boost - boston.test)^2)
+```
+
+**Task**: Discuss with a programming buddy, what is the overall error of this boosted model? Which of all the tree models seems to do the best?
+
+*Your response here*
+This model did better than the random forest but by a slight margin. I would say the random forest and the boosting methods are both huge improvements from the single tree model and trying all three would be best because they might fit a certain type of data.
+
+We can investigate the relative influence of each predictor on the model to figure out what variables relate to the outcome variable. We can also produce partial dependence plots to illustrate, in part, how one variable relates to the outcome variable (here `medv`).
+
+```{r}
+summary(boost.boston, las = 1)
+#Here there's a table with a column detailing relative influence.
+plot(boost.boston, i = "rm")
+#This is an analysis of a single variable. it looks at how y is predicted by rm.
+```
+
+**Task**: How would you interpret the predictors that are important in this model? What does this plot show about how `medv` (shown on y-axis) relates to the variable `rm`? Share your findings with a programming buddy.
+
+*Your response here*
+This relationship between rm and medv makes sense because the number of rooms per dwelling will obviously affect the pricing of the house. We can see that, when other factors are ignored, the number of rooms (up to 7) does not affect the price too much. However, when rm goes up to 8, the price suddenly peaks.
+------
+
+#### Tree Model Exercises
+
+* Apply tree-based models to a new dataset.
+* Compute a linear model (linear regression or logistic regression) for the same dataset and compare results to the non-linear model.
+
+Find another dataset with either a quantitative or qualitative outcome to train a regression tree or classification tree respectively. You can access a list of built-in R datasets using `data()` within the R console.
+
+For the below steps, you are encouraged to work with a programming buddy.
+
+**Task**: Choose a dataset and identify your output/target variable. Train a tree model on a training dataset (a subset of the original dataset that you choose randomly). 
+
+```{r}
+# Your code here
+?Wage
+head(Wage)
+train <- sample(1:nrow(Wage), nrow(Wage) / 2)
+head(train)
+tree.wages <- tree(wage ~ . -logwage, Wage, subset = train)
+#Using everything to predict medv. This uses the whole data set.
+summary(tree.wages)
+plot(tree.wages)
+text(tree.wages, pretty = 0)
+
+```
+
+**Task**: Analyze the overall error of your model and the contribution of the different predictors. What is the relationship between these predictor variables and the output variable?
+
+```{r}
+# Your code here
+yhat <- predict(tree.wages, newdata = Wage[-train, ])
+wages.test <- Wage[-train, "wage"]
+plot(yhat, wages.test, pch = 20)
+abline(0, 1, lwd = 3, col = "red")
+mean((yhat - wages.test)^2)
+```
+
+*Your response here*
+Like the single tree we modeled previously, this one is not very accurate because the yhat values are limited to those predicted by, well, a single tree, The huge mean of residual squared also does not bode well, however, some of this might be because of the naturally high values of `wages`.
+
+
+**Task**: Train either a multiple linear regression model or a logistic regression model (depending on the output variable you chose to predict) on the same dataset. Compare the accuracy of the tree model vs. the linear model you used. Which works better?
+
+```{r}
+# Your code here
+lm.wage = lm(formula = wage ~ education + health_ins + age, Wage)
+summary(lm.wage)
+plot(lm.wage)
+```
+
+*Your response here*
+Although all of the contributors I used were significant, the model was also inaccurate with the 0.3 R-squared value.
+
+
+**Task**: Train some sort of aggregate tree model through one of the following options: bagging, boosting, or random forest. Compare the accuracy of this model and the contributions of the predictors to those of the single tree model. Which model do you think is more useful, and why?
+
+```{r}
+# Your code here
+rf.wages <- randomForest(wage ~ . -logwage, Wage, subset = train, mtry = 4, importance = TRUE)
+#Using everything to predict medv. This uses the whole data set.
+yhat.rf.wages <- predict(rf.wages, newdata = Wage[-train, ])
+summary(yhat.rf.wages)
+mean((yhat.rf - wages.test)^2)
+varImpPlot(rf.wages)
+```
