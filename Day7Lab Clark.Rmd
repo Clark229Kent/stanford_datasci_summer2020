@@ -1,0 +1,334 @@
+---
+title: "Day 7 Programming Lab"
+author: "Clark"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Validation and Shrinkage Models
+
+The code presented in this lab was loosely adapted from *An Introduction to Statistical Learning with Applications in R* by James *et al.* This particular programming lab draws from Lab: Cross-Validation and the Bootstrap (5.3) and Lab 2: Ridge Regression and the Lasso (6.6) in ISLR.
+
+**Learning Goals:**
+
+* Use cross-validation (CV) such as validation set, leave-one-out CV, or k-fold CV to create a more powerful model.
+* Compare and contrast when you would use one kind of CV over another.
+* Estimate a given parameter and its variability using bootstrap.
+* Relate how bootstrapping mimics sampling from the true population to how it creates a confidence interval in its estimate.
+* Apply shrinkage via lasso to adjust the influence/inclusion of predictors in the model.
+
+**Instructions:** Everywhere you see the **Task** prompt, please be sure to write in your code or response underneath the prompt. Be sure that the code is able to execute completely and that the result you expect is shown in the resulting html file.
+
+**Please note this lab has been made shorter to give you more time to work on your final project.**
+
+------
+
+#### Cross-Validation
+
+Cross-validation (CV) is an important strategy in choosing and refining a model for your data science applications. Best practice dictates that you should not touch your test dataset until you have narrowed your choice down to a final model in order for your reported model accuracy to be trusted. However, we cannot always rely on learning and assessing the model on a single training dataset since very likely the model will be overfitted to this data and perform much better than on the test dataset. Thus, we should be sure to set aside a third partition or a validation dataset (or perform cross-validation) to refine our model before we assess on the test data.
+
+To showcase the value of validation dataset approach, we will revisit the `Auto` dataset and use two different random training datasets.
+
+```{r}
+library(ISLR)
+set.seed(1)
+dim(Auto)
+train1 <- sample(392, 196)
+#Splitting training set into equal halves
+lm.fit1 <- lm(mpg ~ horsepower, data = Auto, subset = train1)
+set.seed(2)
+train2 <- sample(392, 196)
+lm.fit2 <- lm(mpg ~ horsepower, data = Auto, subset = train2)
+summary(lm.fit1)
+summary(lm.fit2)
+mean((Auto$mpg - predict(lm.fit1, Auto))[-train1]^2)
+mean((Auto$mpg - predict(lm.fit2, Auto))[-train2]^2)
+```
+
+**Task**: How do the coefficients and error on these models trained from different sets of training data compare?
+
+*Your response here*
+The coefficients and error on these two models vary little, which is reasonable because they both used the same factors on two halves of the complete data set.
+
+Random sampling of the data always presents a possibility for the training of a model that is biased and not as applicable to a generalized dataset. Thus, we will make use of the `cv.glm` function to perform cross-validation and refine our model to reduce random bias.
+
+```{r}
+library(boot)
+?cv.glm
+head(Auto)
+#Takes in argument data, glm.fit, and possibly K value
+glm.fit <- glm(mpg ~ horsepower, data = Auto)
+cv.err <- cv.glm(Auto, glm.fit)
+#This variable is now set to estimated K-fold cross validation prediction error
+cv.err$delta
+```
+
+**Task**: Investigate what the `cv.glm` function does. What does the `delta` it returns refer to here?
+
+*Your response here*
+If we call delta, it returns two numbers in the form of a vector. The first is a raw cross-validation estimate, the second is the adjusted. 
+
+Cross-validation is the process of randomly sampling to get a training dataset and a validation dataset, learning a model on the training and testing on the validation, before resampling to perform the same approach. This iterative process allows us to pinpoint the best model we can get from these samplings.
+
+The most common cross-validation techniques are Leave-One-Out Cross-Validation (LOOCV) and k-Fold Cross-Validation. We showcase both down below as we try to figure out the error in training models that predict mpg from horsepower taken to different exponents.
+
+```{r}
+set.seed(17)
+cv.error <- rep(0, 5)
+for (i in 1:5) {
+  glm.fit <- glm(mpg ~ poly(horsepower, i), data = Auto)
+  cv.error[i] <- cv.glm(Auto, glm.fit)$delta[1]
+  #Replaces the 0s in the list by the raw cross validation error value. Calculate LOOCV error
+  #Defaults to k = observations in the dataset.
+}
+
+cv.error.10 <- rep(0, 10)
+for (i in 1:10) {
+  glm.fit <- glm(mpg ~ poly(horsepower, i),data = Auto)
+  cv.error.10[i] <- cv.glm(Auto, glm.fit, K = 10)$delta[1]
+  # calculate k-fold CV error for k = 10
+}
+
+par(mfrow = c(1, 2))
+plot(cv.error, type = "b")
+plot(cv.error.10, type = "b")
+```
+
+**Task**: What pattern do you notice in the errors? Which exponent works best of the options of 1 through 10?
+
+*Your response here*
+
+Note that we only test exponents of 1 through 10 in the k-fold CV model and not the LOOCV model, because LOOCV can be more computationally intensive to calculate.
+
+------
+
+#### Bootstrap
+
+The bootstrap is a powerful strategy that can be applied to the calculation of any statistic to get a sense of the variability and accuracy. Bootstrap assumes that the available dataset to sample from represents the population as a whole, and takes many repeated samplings with replacement to simulate distinct measurements. The variability in the distinct measurements gives us a sense for the confidence interval of our estimated statistic.
+
+To demonstrate how bootstrap works, we must first choose what statistic we want to calculate. This calculation is performed by the below function that has been scripted for you.
+
+```{r}
+boot.fn <- function(data, index) {
+  new.model <- lm(mpg ~ horsepower, data = data, subset = index)
+  model.coef <- coef(new.model)
+  return(model.coef)
+}
+set.seed(1)
+my.index <- sample(392, 392, replace = TRUE)
+head(my.index)
+boot.fn(Auto, my.index)
+```
+
+**Task**: Investigate what this function does. Read the definition: what arguments does it take and what does it return. Look at the example for how it is used and the output it gives.
+
+*Your response here*
+This function takes in a dataset and a group of index and trains a model based on the data's horsepower variable's relationship with the mpg variable. Then it returns the coefficients.
+In this case, we plug in the Auto dataset and a random sampling of 392 rows (that may repeat itself since we replace). It returns the coefficients.
+
+**Task**: Keep running the above line of code for different values of `set.seed`. How much does the calculated statistic vary depending on the sample you get?
+
+```{r}
+# Your code here
+set.seed(2)
+my.index <- sample(392, 392, replace = TRUE)
+head(my.index)
+boot.fn(Auto, my.index)
+
+set.seed(100)
+my.index <- sample(392, 392, replace = TRUE)
+head(my.index)
+boot.fn(Auto, my.index)
+```
+
+*Your response here*
+Every time we set a different seed the random samplign will be different and the coefficients will vary (not by much).
+
+Look up the `boot` function using the `help` function. We can use this function to automate the sampling process and get our estimate for variability.
+
+```{r}
+?boot
+#Bootstrap resampling
+boot(Auto, boot.fn, 1000)
+#R = 1000 means that we replicate the number of bootstrap (or that we resample) 1000 times
+```
+
+**Task**: Discuss with a programming buddy, what does `t1` and `t2` in this summary refer to? Do these numbers match up with what you expected?
+
+*Your response here*
+t1 is the same as intercept and t2 is the same as the coefficient for horsepower. We know this because these values are very close to what we previously predicted. However, it is notable that we now have very low bias and standard error.
+
+Normally, we do get coefficients and a sense of their standard deviation when we train a model without using bootstrap, as seen below.
+
+```{r}
+single.model <- lm(mpg ~ horsepower, data = Auto, subset = 1:392)
+summary(single.model)
+#A linear model can achieve bootstrap sometimes. Same to 5 s.f.
+```
+
+You can compare the standard error from `summary` on an `lm` model and the one calculated using the `boot` function. The former is derived from a formula and the latter is empirically derived. The formula makes assumptions about the data that are often not true so depending on the data available to bootstrap, bootstrapping may be more accurate. 
+
+------
+
+#### Lasso Models (and Shrinkage)
+
+Shrinkage models, sometimes also called models with regularization, is a way to reduce the variance in models. Ridge regression in particular adds a tuning parameter that imposes a penalty for the magnitude of coefficients and encourages them to be as small as possible.
+
+Lasso is similar to ridge regression in that it reduces variance in the model by encouraging smaller coefficients. However, lasso has the added benefit that it pushes coefficients to zero so that it essentially selects the few most important predictors to include and all others are ignored.
+
+As an example, we can work again with the `Hitters` dataset and try to predict salary from other factors. You can investigate this dataset and the available predictors using `help(Hitters)`. 
+
+```{r}
+?Hitters
+library(ISLR)
+summary(Hitters$Salary)
+Hitters <- na.omit(Hitters)
+summary(Hitters$Salary)
+x <- model.matrix(Salary ~ ., Hitters)[, -1]
+head(Hitters)
+head(x)
+?model.matrix
+#This designs a matrix that relates salary with all other factors. What does [,-1] mean?
+y <- Hitters$Salary
+```
+
+**Task**: Investigate the pre-processing that we have done with the data. What does the `model.matrix` function do? You should inspect what the new dataset `x` looks like compared to the original `Hitters` dataset.
+
+*Your response here*
+The new dataset x is a matrix rather than a data frame. We've also neglected the Hitters$Salary column since that's going to be what we predict (y).
+
+The `glmnet` function lets us perform shrinkage models such as ridge regression and lasso depending on what we set the `alpha` parameter to. Here we train a lasso model using the `Hitters` dataset:
+
+```{r}
+library(glmnet)
+?glmnet
+set.seed(1)
+train <- sample(1:nrow(x), nrow(x)/2)
+grid <- 10^seq(10, -2, length = 100)
+head(grid)
+lasso.mod <- glmnet(x[train, ], y[train], alpha = 1, lambda = grid)
+summary(lasso.mod)
+```
+
+We set `alpha = 1` in the `glmnet` function to use lasso (ridge regression would use `alpha = 0`).
+
+**Task**: Investigate what the `glmnet` function does and which arguments it takes using `help(glmnet)`. What role does the `grid` variable play in this function? What is different about the arguments that `glmnet` expects compared to `glm` or `lm`?
+
+*Your response here*
+The glmnet function takes in a matrix as input and asks for the response variable (the one we try to predict). In this case, we also feed a value for aplha and lambda. Alpha is the elasticnet mixing parameter. When we set it to 1, we mean that we want this to be a lasso function because 1 is the lasso penalty. Lambda is a sequence of values that the computer uses to speed up the fitting process. In this case, grid is a sequence of 10 to the power of a series of 100 numbers between 10 and -2. I am not sure why these numbers are used.
+
+```{r}
+plot(lasso.mod)
+?plot.glmnet
+```
+
+**Task**: What is this plot showing? Use `help(plot.glmnet)` to figure out how the `plot.glmnet` function works.
+
+*Your response here*
+This plot is a coefficient profile plot of the coefficient paths for a fitted glmnet. In this case, we can see that the lasso method has decreased most of the lines of coefficients to 0, and only left the significant black, red, and green lines that are obviously major contributors.
+
+Once we have learned this lasso model, we can pull out the coefficients. However, the coefficients result is more complicated than in previous modeling situations. 
+
+```{r}
+dim(Hitters)
+dim(coef(lasso.mod))
+coef(lasso.mod)[1:5, c(1, 50, 75, 90, 100)]
+```
+
+**Task**: Why are there 20 rows and 100 columns in the coefficients generated by this model?
+
+*Your response here*
+There are 20 rows because the original data set contained 20 factors. The 100 columns were derived from the validation model we ran 100 times.
+
+Different lambdas or tuning parameter values were used and they lead to different coefficients. Obviously we would not just pick a model from our lasso with a certain lambda completely at random. We should pick one model that has the lowest error according to cross-validation.
+
+```{r}
+set.seed(1)
+train <- sample(1:nrow(x), nrow(x)/2)
+cv.out <- cv.glmnet(x[train, ], y[train], alpha = 1)
+?cv.glmnet
+#Cross validation for glmnet. Does k-fold cv and produces a plot. 
+plot(cv.out)
+```
+
+Investigate what `cv.glmnet` does using the `help` function.
+
+**Task**: What does this plot represent? What does the lambda stand for/represent, and why do we care about Mean-Squared Error? What appears to be the best value of lambda? Remember that the plot is displaying the log of the value.
+
+*Your response here*
+This plot graphs log of lambda against the mean squared error of the lasso model that corresponds to the lambda value. For example, at log(lambda) = 0, the mean squared error is a little higher than 120000. We care about this mean squared error because it points us to the best lambda we can choose to minimize error in our model before we test it against our test part of the data. In this case, the best value is indicated by a dotted line at about 2.2
+
+```{r}
+bestlam <- cv.out$lambda.min
+log(bestlam)
+bestlam
+```
+
+**Task**: Check this value against the above graph and whether it is where you expected to see it on the plot.
+
+*Your response here*
+Yes. The plot seems to automatically mark where the lowest point of lambda is.
+
+Using this best lambda, we can check out the coefficients for this best-performing lasso model. The absolute value of the coefficient is used below to make it easy to interpret the relative importance of each predictor. Specifically, we will only focus on the predictors that have non-zero coefficients.
+
+```{r}
+final.lasso <- glmnet(x, y, alpha = 1, lambda = grid)
+lasso.coef <- predict(final.lasso, type = "coefficients", s = bestlam)[1:20, ]
+lasso.coef
+nonzero.lasso.coef <- lasso.coef[lasso.coef != 0]
+nonzero.lasso.coef
+barplot(abs(nonzero.lasso.coef[-1]), las = 2, col = "blue")
+```
+
+**Task**: How would you interpret these results? What does it tell you about the most important predictors for salary?
+
+*Your response here*
+Unlike how the tree models predicted, division and league are actually much more significant factors compared to hits, walks, and years. While this may be true, the lasso model does not consider how experience or skill impacts where the player will end up. Naturally, those with better hits, walks, and better plays are going to be employed by stronger, higher-paying leagues and divisions, winning even more games.
+------
+
+#### Shrinkage Model Exercises
+
+* Use any prior regression analysis from a past lab and instead apply lasso.
+* Compare the results of these two analyses, discussing the pros and cons of each approach.
+
+Work through the following exercises with a programming buddy.
+
+**Task**: Find a dataset that you analyzed previously using linear regression. Try applying lasso instead to this data and see how the results (i.e. coefficients of predictors) differ. Be sure you pick the model with the lambda that has the lowest CV error!
+
+```{r}
+# Your code here
+library(MASS)
+library(ISLR)
+head(Boston)
+Boston <- na.omit(Boston)
+summary(Hitters$mdev)
+x <- model.matrix(medv ~ ., Boston)[, -1]
+y <- Boston$medv
+
+set.seed(100)
+train <- sample(1:nrow(x), nrow(x)/2)
+grid <- 10^seq(10, -2, length = 100)
+head(grid)
+
+lasso.mod <- glmnet(x[train, ], y[train], alpha = 1, lambda = grid)
+summary(lasso.mod)
+
+cv.out <- cv.glmnet(x[train, ], y[train], alpha = 1)
+plot(cv.out)
+bestlam <- cv.out$lambda.min
+log(bestlam)
+
+best.lasso <- glmnet(x, y, alpha = 1, lambda = grid)
+final.lasso.coef <- predict(best.lasso, type = "coefficients", s = bestlam)[1:14, ]
+final.lasso.coef
+nonzero.final.lasso.coef <- final.lasso.coef[final.lasso.coef != 0]
+nonzero.final.lasso.coef
+barplot(abs(nonzero.final.lasso.coef[-1]), las = 2, col = "red")
+```
+*Your response here*
+
+This cross validation varies drastically from what we've previously learned about the Boston data set. In the past, we considered rm and lstat to be the most influential predictors. In this lasso model, after pushing coefficients to zero, nox stands out as the most prominent factor. Nox measures the nitrogen oxide concentration around the household (air quality). I do not see that strong a connection between that and household value, so I wonder if this model is indeed accurate.
