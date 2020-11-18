@@ -1,0 +1,452 @@
+---
+title: "Day 2 Programming Lab"
+author: "Clark"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Making Visualizations in ggplot2
+
+The code presented in this lab was loosely adapted from *An Introduction to Statistical Learning with Applications in R* by James *et al.*, in particular Lab: Introduction to R (2.3) in ISLR, and from the Data Carpentries lessons.
+
+**Learning Goals:**
+
+* List the roles of data, aesthetics, and geoms in ggplot functions.
+* Choose the correct aesthetics and alter the geom parameters for a scatter plot, histogram, or box plot.
+* Layer multiple geometries in a single plot.
+* Customize plot scales, titles, subtitles, themes, fonts, layout, and orientation.
+* Apply a facet to a plot.
+* Save a ggplot to a file.
+
+**Instructions:** Everywhere you see the **Task** prompt, please be sure to write in your code or response underneath the prompt. Be sure that the code is able to execute completely and that the result you expect is shown in the resulting html file.
+
+------
+
+#### Randomness
+
+There are several functions that produce random numbers, including `rnorm` and `runif` that you can research with the `help` function.
+
+```{r}
+?rnorm
+#Normal Distribution - bell curve. This means that if we sample, it's more likely that we'll pull from somewhere close to the mean.
+?runif
+#Uniform distribution - flat line of mean. This means that if we sample, every number within the range will have an equal likelihood of being pulled.
+#The range of both are -1 to 1 by default. You can tweak these settings.
+x <- runif(20)
+head(x)
+#Selected first and last values (again, at random)
+```
+
+You can also randomly sample from a provided vector of values. Note the decision to either sample with or without replacement (i.e. can you pull out the same value more than once?).
+
+```{r}
+fruits <- c("bananas", "pears", "peaches", "apples", "oranges", "pineapples")
+sample(fruits, size = 10, replace = TRUE)
+sample(fruits, size = 5, replace = FALSE)
+#Imagine if you're taking out fruits. First scenario you replace the fruits and you take out ten. Sample() is used more for vectors.
+```
+
+**Task:** check what the `set.seed` function does. Why do you think this function is important?
+
+*Your response here*
+The set.seed guarantees that you'll reproduce the random number. Keeping it consistent will make rerunning functions with random numbers easier (checking for errors). Groups can also use it to collaborate and coordinate their figures.
+```{r}
+?set.seed 
+set.seed(1303)
+rnorm(3)
+set.seed(3)
+rnorm(3)
+set.seed(1303)
+rnorm(3)
+```
+
+**Task:** Work with a programming buddy. On each of your computers, set the seed to be the same value and run the `rnorm(3)` function. How do your outputs compare?
+
+```{r}
+set.seed(5)
+rnorm(3)
+set.seed(7)
+rnorm(3)
+```
+*Your response here*
+
+When two R systems set the same seed, their rnorm values will be the same.
+
+There are some mathematical functions that can tell you about the numerical data you have.
+
+```{r}
+y <- rnorm(100)
+mean(y)
+var(y)
+sd(y)
+#Produce 100 random numbers by method of normal distribution and calculate mean/variance/standard deviation
+```
+
+**Task:** check what each of these functions do. How are these calculations relevant to understanding and modeling a dataset? Check with a programming buddy.
+
+```{r}
+y <- rnorm(2)
+print(y)
+mean(y)
+var(y)
+sd(y)
+```
+*Your response here*
+To calculate the mean, variance, and standard deviation of two random numbers.
+Mean gives us a basic idea of where the data is concentrated, though subject to the influence of outliers. Variance will tell the viewer how accurate the regression model will be and the standard deviation helps us understand how the data points are spread.
+------
+
+#### Working with a Dataset
+
+As discussed in yesterday's lab, there are many functions we can use to inspect and gain an intuition for a new dataset.
+
+```{r}
+mtcars
+head(mtcars)
+summary(mtcars)
+?str
+#Compactly display structure of an arbitrary R object. It shows the variables, the category of the figure, and the data/observations.
+str(mtcars)
+?rownames()
+#A list of all the row names (in this case you would retrieve all the car names)
+rownames(mtcars)
+```
+
+These functions can show you the structure and variability of the data, but plots and visualizations may aid you the most. Here are examples of how to make figures that use the basic R functionality for plotting (i.e. NOT ggplot2).
+
+```{r}
+plot(mtcars$cyl, mtcars$mpg)
+#Recall that the $ sign means that row or that column in a table. It retrieves it as if an index.
+```
+
+Here we can see where treating a column in our dataset as a factor might be useful. The above plot shows `cyl` or the number of cylinders in a car as a continuous variable. However, you won't see 4.5 cylinders in a car, moreover you also won't see 7 cylinders in a car. The only options represented are 4, 6, and 8 so it makes more sense for this parameter `cyl` to be treated as categorical data.
+
+```{r}
+?as.factor
+#as.factor helps the computer understand that the cyl 4,6,8 should be treated as categories rather than numbers.
+mtcars$cyl <- as.factor(mtcars$cyl)
+plot(mtcars$cyl, mtcars$mpg)
+#The box and whisker plot might be automatically done.
+```
+
+Though the basic R plotting functions are not as pretty or customizable as ggplot2, there are still some ways that you can tailor the appearance of your figures, such as changing colors and labels.
+
+```{r}
+plot(mtcars$cyl, mtcars$mpg, col = "red", horizontal = T, xlab = "cylinders", ylab = "MPG")
+#Here we see that we can add arguments into the plot argument. Col refers to color. Horizontal is a boolean value and determines the orientation. We can also label the axes.
+```
+
+
+```{r}
+?hist
+hist(mtcars$mpg)
+#Hist() creates a histogram.
+```
+
+**Task:** What does the `hist` function do and when might it be useful? How do you interpret the figure it produces? Discuss your thoughts with a programming buddy.
+
+*Your response here*
+Hist function creates a histogram. Histograms are useful when dealing with a single numerical data, often used with frequency or counted observations.
+
+Same as with the scatterplot and boxplots above, we can customize the look of this `hist` function output.
+
+```{r}
+hist(mtcars$mpg, col = "blue", xlab = "MPG", breaks = 15)
+#The break number is irrelevant to the actual numbers on the axes. It is a unit length that R uses to measure binwidth.
+```
+
+**Task:** What is the importance of changing the number of breaks in the `hist` function?
+
+*Your response here*
+The number of breaks is going to determine the precision of the plot. A histogram with a small number of breaks may oversimplify the data.
+
+```{r}
+pairs(~ mpg + disp + hp + wt + qsec, mtcars)
+```
+
+**Task:** What does the `pairs` function do and when might it be useful? How do you interpret the figure it produces? Discuss with a programming buddy.
+
+*Your response here*
+Pairs function reminded me of the facetting function in ggplot2. I believe it pairs every variable with another and develops a graph for each and every one.
+------
+
+#### Working with ggplot2
+
+We will primarily be working in ggplot2 as it has the greatest degree of customization for visualization and offers many additional features over the basic plotting in R.
+
+```{r}
+library(ggplot2)
+#This is the download
+```
+
+Most ggplot calls to create a figure take the following form (you can read more using `help(ggplot)`):
+
+`ggplot(data = <DATA>, mapping = aes(<MAPPINGS>)) + <GEOM_FUNCTION>()`
+
+We will practice using the US arrests dataset. You can look up more info about this dataset using the `help` function and the dataset name, `USArrests`.
+
+```{r}
+?USArrests #This data set contains arrest stats per 100,000 residents for violent crime.
+head(USArrests)
+```
+
+You will first use the `ggplot()` function and bind the plot to a specific data frame using the data argument.
+
+`ggplot(data = USArrests)`
+
+You will next need to define a mapping (using the aesthetic or `aes` function), by selecting the variables to be plotted and specifying how to present them in the graph, e.g. as x/y positions or characteristics such as size, shape, color, etc.
+
+`ggplot(data = USArrests, aes(x = UrbanPop, y = Murder))`
+
+You can then add ‘geoms’ – graphical representations of the data in the plot (points, lines, bars). ggplot2 offers many different geoms. We will use some common ones today including:
+
+* `geom_point()` for scatter plots, dot plots, etc.
+* `geom_boxplot()` for, well, boxplots!
+* `geom_line()` for trend lines, time series, etc.
+
+To add a geom to the plot use the `+` operator. Because we have two continuous variables, let’s use `geom_point()` first:
+
+`ggplot(data = USArrests, aes(x = UrbanPop, y = Murder)) + geom_point()`
+
+To save your work-in-progress, you can assign the plot to a variable.
+
+```{r}
+my_plot <- ggplot(data = USArrests, aes(x = UrbanPop, y = Murder))
+```
+
+**Task:** try to display `my_plot` at this point and describe what you see. Why do you think you see this result?
+
+```{r}
+# Your code here
+my_plot
+```
+ 
+*Your response here*
+There is no geom information, so there are no "layers" of visual representation. We have to, as an example, `+ geom.point()`.
+
+We can now draw the plot as a scatterplot with points to represent each state.
+
+```{r}
+my_plot + geom_point()
+```
+
+**Task:** create a different plot that compares two other variables in this dataset as a scatterplot.
+
+```{r}
+# Your code here
+second_plot = ggplot(data = USArrests, aes(x=UrbanPop, y=Rape)) + geom_point()
+second_plot
+```
+
+We can modify the appearance of the plot by changing aspects of the points we plot such as transparency ("alpha") and color.
+
+```{r}
+ggplot(data = USArrests, aes(x = UrbanPop, y = Murder)) +
+    geom_point(alpha = 0.5, color = "blue")
+#Alpha means transparency. Can be used later for emphasis.
+```
+
+It is also possible to scale the color of the points by some variable present in the data.
+
+```{r}
+ggplot(data = USArrests, aes(x = UrbanPop, y = Murder, color = Assault)) +
+  geom_point()
+```
+
+**Task:** discuss with a programming buddy how you would interpret this data.
+
+*Your response here*
+The addition of assault data to the murder/urban population graph makes it easier to find a correlation between the two types of crimes. As we can see, there seems to be a slight correlation between increase in population and an increase in density of crime. We can also see that in states with high murder rates there are also high assault rates.
+
+When generating visualizations, it is important to annotate the figure with meaningful labels on the axes to make them accessible for the viewer.
+
+```{r}
+ggplot(data = USArrests, aes(x = UrbanPop, y = Murder, color = Assault)) +
+  geom_point() + 
+  labs(x = "Urban Population", 
+       y = "Number of Murders")
+```
+
+------
+
+#### Plotting Numerical vs. Categorical Data
+
+We will explore one more dataset to show how we can compare quantitative data by certain groupings (categorical info in the dataset).
+
+```{r}
+library(ISLR)
+head(Wage)
+```
+
+We can create histograms in ggplot2 that are more aesthetically pleasing than the default `hist` function.
+
+```{r}
+ggplot(Wage, aes(x = age)) +
+    geom_histogram(bins = 10)
+```
+
+**Task:** create a histogram of another numerical value from this dataset.
+
+```{r}
+# Your code here
+ggplot(data = Wage, aes(x = wage)) +
+    geom_histogram(bins = 20)
+#The x value MUST BE DISCRETE NUMERICAL
+```
+
+By adding a different parameter to `fill` in the `aes` we define through the `ggplot` function, we can separate out histograms according to different groupings such as here where we look at how wage is distributed according to education level.
+
+```{r}
+ggplot(Wage, aes(x = wage, fill = education)) +
+    geom_histogram(bins = 25)  
+#Fill color codes portions of a histogram bar according to another variable.
+```
+
+**Task:** discuss with a programming buddy what you would conclude or hypothesize from this data. How could you improve this figure to make it more comprehensible?
+
+*Your response here*
+
+We can see that people of higher education tend to form a larger percentage of the high wage population. We also notice that a large proportion of the surveyed population are HS graduates or those with some college education.
+
+We can look at how many individuals in the dataset fall into each category, such as marital status.
+
+```{r}
+ggplot(data = Wage, aes(x = maritl)) + 
+  geom_bar()
+```
+
+**Task:** create a bar chart looking at another categorical variable.
+
+```{r}
+# Your code here
+ggplot(data=Wage, aes(x=race)) + 
+  geom_bar()
+```
+
+We can look at how many wage is distributed within each category of marital status using separate box plots.
+
+```{r}
+ggplot(data = Wage, aes(x = maritl, y = wage)) + 
+  geom_boxplot()
+```
+
+We can even drill down further and separate out another category, so that we can look at each marital status and each job class (e.g. how the wage of those who are married in industrial jobs compare to the wage of those who are married in information jobs).
+
+```{r}
+ggplot(Wage, aes(x = maritl, y = wage, color = jobclass)) +
+    geom_boxplot() 
+#This resembles the fill function in histograms.
+```
+
+**Task:** generate another boxplot that has a different `color` attribute in the `aes` function. Discuss what question you are able to answer using this comparison with your programming buddy.
+
+```{r}
+# Your code here
+ggplot(data = Wage, aes(x=maritl, y=wage, color=race)) +
+  geom_boxplot()
+```
+
+*Your response here*
+We notice that the surveyed white and Asian people generally earn higher wages than the others. In the white community, there are especially many outliers with high wages. On the other hand, peoples of other races almost never exceed the 175 mark.
+------
+
+#### Plotting Trends in Big Data
+
+Lots of these different figures summarize or aggregate the data. We may want to display the data with the individual points, but still show the overall trend across the data.
+
+```{r}
+ggplot(data = Wage, mapping = aes(x = age, y = wage))  +
+    geom_point() 
+ggplot(data = Wage, mapping = aes(x = age, y = wage))  +
+    geom_bin2d() +
+    geom_density_2d()
+?geom_bin2d #heatmap, divides plane into rectangles and maps fill.
+?geom_density_2d #contour lines to show concentration levels.
+```
+
+**Task:** talk to a programming buddy about when density/contours might provide more info than the scatterplot dots alone.
+
+*Your response here*
+
+When the scatterplot contains only dots, We are overplotting and often times dots mix together and we cannot distinguish or interpret well/accurately. By adding a contour line and a density map, we can better see (with colors) where and what the most common observations may be. This doesn't help as much with prediction due to the lack of a mathematical model but it helps us infer.
+
+We can add a trendline with `geom_smooth` that you can check using `help(geom_smooth)`.
+
+```{r}
+ggplot(data = Wage, mapping = aes(x = age, y = wage)) +
+    geom_point(alpha = 0.5) +
+    geom_smooth()
+```
+
+**Task:** identify the trend you see here and speculate what may cause it. What questions does this inspire?
+
+*Your response here*
+
+Overall, through ages 20 to 40, wage is developing and from 40 to 60 wages plateau. THis makes sense because we need to develop our career before we settle into a good-paying and stable job. We also notice that there is a lot of uncertainty after the 60 years old mark. This is caused by the relative lack of data. We also notice that the trendline seems to neglect the number of outliers above the main cluster. This shows an apparent class divide.
+
+
+We can also do this with trendlines that summarize only certain subsets of the data, such as the wages of those with certain educational levels.
+
+```{r}
+ggplot(data = Wage, mapping = aes(x = age, y = wage)) +
+    geom_point() +
+    geom_smooth(aes(color = education)) 
+```
+
+The above plot reflects the trends, but makes it hard to see the data that is contributing to each trend line. These differences can be most easily seen using `facet_wrap` or facetting that splits the figure into separate panel where the data has been filtered by the category (i.e. educational level).
+
+```{r}
+ggplot(data = Wage, mapping = aes(x = age, y = wage)) +
+    geom_point() +
+    geom_smooth(aes(color = education)) +
+    facet_wrap( ~ education)
+```
+
+**Task:** produce a `facet_wrap` plot that lets you compare wage vs. age as broken down by another categorical variable like `jobclass` or `region` or marital status.
+
+```{r}
+# Your code here
+ggplot(Wage, aes(x=age, y=wage)) +
+  geom_bin2d() +
+  geom_smooth(aes(color = race)) +
+  facet_wrap(~race)
+ggsave("trial.png")
+```
+
+------
+
+#### Saving Your Figures
+
+If you want to save your images as a local individual file on your computer, there are two easy ways to do that.
+
+The first method uses `ggsave` to save the most recent ggplot figure you generated.
+
+```{r}
+ggplot(mtcars, aes(x = cyl, y = mpg)) + geom_point() +
+  geom_smooth(method = "lm")
+ggsave("plot.png", width = 5, height = 5)
+```
+
+This function will save wherever your directory is currently. Check with `getwd()` and change with `setwd(folder name)`. You can also provide a precise file path in the new file name.
+
+```{r}
+ggsave("~/Downloads/plot.png", width = 5, height = 5)
+ggsave("trial.png", width = 7.29, height = 4.51)
+```
+
+Here is an alternative method for saving your figures:
+
+```{r}
+pdf("mtcars_lm.pdf") # creates the file
+# png() also works if you want a different file format
+ggplot(mtcars, aes(x = cyl, y = mpg)) + geom_point() +
+  geom_smooth(method = "lm")
+dev.off() # finishes editing the file
+```
+
+Any changes to the figure that are contained between the initial creation of the figure (i.e. the `pdf` command) and the `dev.off` command will be included in the final saved image. However, the figure is being printed directly to the file it is writing and won't appear elsewhere.
+
