@@ -1,0 +1,704 @@
+---
+title: "Day 3 Programming Lab"
+author: "Clark"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Dimensionality Reduction and Clustering
+
+The code presented in this lab was loosely adapted from *An Introduction to Statistical Learning with Applications in R* by James *et al.* This particular programming lab draws from Lab: Principal Components Analysis (10.4) and Lab: Clustering (10.5) in ISLR.
+
+**Learning Goals:**
+
+* Apply PCA to a dataset and visualize the appropriate principal components in a figre.
+* Interpret the meaning of the contribution of each variable to the major principal components.
+* Apply tSNE a dataset and visualize the tSNE axes in a figre.
+* Compare clustering algorithms and their outputs on a given dataset.
+
+**Instructions:** Everywhere you see the **Task** prompt, please be sure to write in your code or response underneath the prompt. Be sure that the code is able to execute completely and that the result you expect is shown in the resulting html file.
+
+------
+
+#### Applying Principal Components Analysis (PCA)
+
+We will use the US arrests dataset to practice applying PCA. You can look up more info on this dataset using `help(USArrests)`.
+
+```{r}
+head(USArrests)
+apply(USArrests, 2, mean)
+#Applying the mean function in the columns (2 means columns)
+?apply 
+#Applies function and converts to vector
+```
+
+**Task:** What does the `apply` function do? Why do we supply a 2 in the second argument of this function?
+
+*Your response here*
+The apply function just executes the relevant function onto the specified dataset. In this case, we supply a 2 to mean columns. So we calculate the mean of all values within a column.
+
+**Task:** What happens when you change the 2 to a 1? What has changed in the output?
+
+```{r}
+# Your code here
+apply(USArrests, 1, mean)
+```
+
+**Task:** determine how you can get the standard deviation of the murder, assault, urban population, and rape statistics in all states. Work with a programming buddy.
+
+```{r}
+# Your code here
+apply(USArrests, 2, sd)
+```
+
+The above calculations give us an idea of the average statistics across all states and how much variability there is in the data. PCA can show us this variability across more than two dimensions reduced down to fewer dimensions, since there is no easy way to visualize in four dimensions simultaneously.
+
+```{r}
+pr.out <- prcomp(USArrests, scale = TRUE)
+?prcomp
+#Principal Components Analysis
+pr.out
+```
+
+**Task:** check what the `prcomp` function does and what kinds of settings/arguments it takes.
+
+*Your response here*
+The prcomp calculates the PCA of the argument dataset and it takes the dataset, and the decision of scaling into account. You can also center the data.
+
+```{r}
+?names
+#name() returns the sets of names of pr.out
+names(pr.out)
+pr.out$sdev
+pr.out$center
+pr.out$rotation
+pr.out$scale
+pr.out$x
+```
+
+**Task:** explain the significance of each of the items included in `pr.out`, especially the `rotation` output. Check in with your programming buddy.
+
+*Your response here*
+
+Items in pr.out include "sdev", "rotation", "center", "scale", "x"
+
+`pr.out$rotation` returns the current standard deviation of observations for each dimension
+`pr.out$rotation` returns the same values as the `prcomp(pr.out, scale=TRUE)`
+`pr.out$center` returns the four-dimensional center of the PC plot.
+`pr.out$scale` returns the way in which the data was manipulated to make standard deviation 1.
+`pr.out$x` returns the PC coordinates for each and every state observation on four dimensions.
+
+```{r}
+dim(pr.out$x)
+#50 states, four dimensions (factors)
+head(pr.out$x)
+#PCA of the first few.
+```
+
+**Task:** What does the `x` output stored in the `pr.out` variable represent?
+
+*Your response here*
+
+x represents the rows (in this case, states). pr.out$x will return the PC coordinates across four dimensions for all the 50 states.
+------
+
+#### Visualizing PCA
+
+Once we have calculated the principal components (PC) for a dataset, we can then use those to visualize the data in fewer dimensions. The `biplot` function works well with the output of PCA/`prcomp` by default.
+
+```{r}
+biplot(pr.out, scale = 0)
+```
+
+**Task:** With a programming buddy, discuss what this tells you. What hypotheses or interpretations would you draw from this plot?
+
+*Your response here*
+Looking at how the vectors correlate, murder, assault, and rape have relatively high association with each other and is quite independent from the the factor of urban population. States like Virginia have very average rates of crime and a very average amount of population. California, a highly populous state, also suffers from more crime than the average state. New Hampshire is a less populous state and has low crime rates.
+
+You will noticed that a lot of the axes where parameters like murder rates and urban population are oriented down and to the left, which is the opposite of most plotting coordinates. We can reverse them by taking the negative of these data coordinates.
+
+```{r}
+pr.out$rotation <- -pr.out$rotation
+#Reflects orientation of factors over y=x
+pr.out$x <- -pr.out$x
+#Reflects orientation of state observations over y=x
+biplot(pr.out, scale = 0)
+```
+
+We can then try to calculate how informative these principal components (PC) are in our analysis.
+
+```{r}
+pr.var <- pr.out$sdev^2
+pr.var
+```
+
+**Task:** Why do we square the standard deviation (take it to the second power)? Discuss what this represents and when it is useful with your programming buddy.
+
+*Your response here*
+Variance is equal to standard deviation squared. Here we printed the variance for each of the four factors. We can use variance to calculate for proportion of variance explained.
+
+Here we calculate PVE, which is "the proportion of variance explained by each principal component" that we calculate by "simply dividing the variance explained by each principal component by the total variance explained by all principal components."
+
+```{r}
+pve <- pr.var / sum(pr.var)
+head(pve)
+plot(pve, xlab = "Principal Component", ylab = "Proportion of Variance Explained",
+     ylim = c(0, 1), type = "b")
+#Type b makes it so that a line connects the points.
+```
+
+**Task:** Why is the `y` axis limited to between 0 and 1?
+
+*Your response here*
+The y axis represents PVE, and PVE can be thought of as a percentage. The maximum in any scenario, would be 100% coverage/representation of data.
+
+```{r}
+a <- c(1, 2, 8, -3)
+cumsum(a)
+?cumsum
+#This function returns a vector of cumulative sums, products, minima, or maxima of elements.
+```
+
+**Task:** What does the `cumsum` function do?
+
+*Your response here*
+The cumsum function, when taking in an aargument vector of (a,b,c,d,...) returns a, a+b, a+b+c, .... It continues to cumulate the numerical values inside in the form of adding them.
+
+```{r}
+plot(cumsum(pve), xlab = "Principal Component",
+     ylab = "Cumulative Proportion of Variance Explained", ylim = c(0, 1) , type = "b")
+```
+
+**Task:** Discuss the patterns you notice. How does the first principal component (PC) compare to the ones that come after it? How many PCs would you use in your plot or downstream analysis? Justify your answer to your programming buddy.
+
+*Your response here*
+Here, as we used the cumsum function, the PVE/PC graph is cumulative in terms of total coverage or total representation of data. We realize that it should be likely sufficient to run the first two PC dimensions only, since that already covers more than 80% of the total.
+------
+
+#### Applying t-Distributed Stochastic Neighbor Embedding (tSNE)
+
+tSNE is an alternative to PCA that can be useful with data that is not easily summarized by a linear combination of variables.
+
+```{r}
+library(tsne)
+```
+
+We will practice applying this algorithm to a randomized dataset that we will now generate.
+
+```{r}
+new.data <- matrix(rexp(800, rate = 0.1), ncol = 20)
+#new.data set produces 20 columns.
+?rexp
+#Exponential distribution. 800 values. Rate determines the range of values. The mean of all values is equal to 1/rate. This is why if rate = 1000, all values are a lot smaller.
+new.data[1:5, 1:5]
+#This sata set is randomized every time.
+```
+
+Check what the `tsne` functions do. Notice the output that is printed as the `tsne` function does its work. tSNE is not a deterministic algorithm, that is, it randomly initializes and then goes through a series of iterations to try to arrive at a final result. The final result will be slightly different each time due to the randomness of the start of tSNE.
+
+```{r}
+tsne.results <- tsne(new.data)
+?tsne
+tsne.results
+```
+
+**Task:** How does the error change across the iterations of tSNE before it arrives at its final answer? Describe the pattern you see.
+
+*Your response here*
+
+The error is reduced to its smallest possible value during the 1000 iterations. However, the decrease in error decreases as the accuracy increases - since it's harder to find what's wrong.
+
+We can compare the result of tSNE to what you would get from PCA.
+
+```{r}
+plot(tsne.results)
+pr.out2 <- prcomp(new.data, scale = TRUE)
+biplot(pr.out2, scale = 0)
+```
+
+You will notice that PCA does not spread out the data points as much, while tSNE prioritizes having each data point occupying its own space.
+
+------
+
+#### Dimensionality Reduction Exercises
+
+* Apply tSNE to the same dataset and compare results. 
+* Practice applying PCA/tSNE to a biological dataset.
+
+**Task:** Write code to apply tSNE to the provided data (`USArrests`) that you have already analyzed using PCA.
+
+```{r}
+# Your code here
+tsne.Arrests = tsne(USArrests)
+```
+
+We will also explore how dimensionality reduction works on a new dataset `NCI60`.
+
+```{r}
+library(ISLR)
+str(NCI60)
+?str
+?NCI60
+#Microarray data -> expression levels on 6830 genes from 64 cancer cell lines.
+```
+
+You can investigate this dataset using `help(NCI60)`.
+
+```{r}
+nci.labs <- NCI60$labs
+nci.data <- NCI60$data
+NCI60$data[1:5, 1:5]
+head(nci.labs)
+table(nci.labs)
+```
+
+**Task:** Create a variable called `pr.out` that contains the PCA applied to this `nci.data`. Talk with a programming buddy to check your work.
+
+```{r}
+# Your code here
+pr.out = prcomp(nci.data, scale = TRUE)
+pr.out
+```
+
+```{r}
+Cols <- function(vec) {
+    cols = rainbow(length(unique(vec)))
+    return(cols[as.numeric(as.factor(vec))])
+}
+
+#This defines a new function called Cols that takes argument vec.
+?rainbow
+#Creates a vector of contiguous colors, with the number of colors equal to the length of the given vector (or the # of observations)
+?as.factor
+#It returns a vector of these colors.
+```
+
+**Task:** Test what this function does using an example vector (e.g. `c("carrot", "potato", "onion")`). What does it return?
+
+```{r}
+# Your code here
+Cols(c("carrot", "potato", "onion"))
+Cols(c("red","blue","green"))
+Cols(c("-1","2","-3"))
+Cols(c("eight","six","thirteen"))
+Cols(c("a","b","c"))
+Cols(c("6","7","8","5"))
+
+```
+
+*Your response here*
+
+I was a little lost here.
+The Cols function seems to return a code in a form a string that contains information about the relationship between the three (or more) components of a vector.
+
+Uncomment the below code (remove the # signs before each line of code in the code block) once you have generated the correct `pr.out` variable.
+
+```{r}
+nci.labs
+par(mfrow = c(1,2))
+?par
+#Par sets the parameters of a graph. Here, the 1,2 refers to the dimensions of the outline of the graph.
+plot(pr.out$x[, 1:2], col = Cols(nci.labs), pch = 19, xlab = "Z1", ylab = "Z2")
+plot(pr.out$x[, c(1, 3)], col = Cols(nci.labs), pch = 19, xlab = "Z1", ylab = "Z3")
+?plot
+#pch determines the shape of the dot. 19 happens to refer to the normal point.
+```
+
+**Task:** What do the colors represent?
+
+*Your response here*
+The dots represent the 64 types of cancer and the colors refer to where the cancer is localized (e.g. colon, breast, melanoma).
+
+```{r}
+summary(pr.out)
+#Summary of a PCA actually gives us a charted version of a scree plot.
+```
+
+We again calculate the PVE to get a sense of the usefulness of our principal components (PC).
+
+```{r}
+pve <- pr.out$sdev^2 / sum(pr.out$sdev^2)
+par(mfrow = c(1, 2))
+plot(pve, type = "o", ylab = "PVE", xlab = "Principal Component", col = "blue")
+plot(cumsum(pve), type = "o", ylab = "Cumulative PVE",
+     xlab = "Principal Component", col = "brown3")
+#Type o has the line through the dots. Type p does not.
+
+```
+
+**Task:** What do you notice from this application of PCA? How much variance is explained by the PCs?
+
+*Your response here*
+
+Here, PCA struggled because many dimensions where needed to achieve a good representation of the data. In fact,to represent 2/3 of the data, 21 dimensions were needed. This will be hard to visualize with graphs.
+
+**Task:** Write code to apply tSNE to this NCI60 dataset. How does the PCA compare to tSNE for this data? Check your work with your programming buddy.
+
+```{r}
+# Your code here
+?tsne
+```
+
+*Your response here*
+
+The tsne function took very long on RStudio to find the relationships.I couldn't actually load anything because every time I try to run the function my RStudio freezes. If there's a way to circumvent this, I'd love to know how :)
+
+#### K-Means Clustering
+
+Here we generate a random dataset that we can practice clustering on.
+
+```{r}
+set.seed(2)
+x <- matrix(rnorm(20 * 2), ncol = 2)
+head(x)
+#Selecting a few random numbers.
+```
+
+**Task:** What does the `rnorm` function do? Discuss what kinds of matrix you have generated.
+
+*Your response here*
+rnorm generates a set number of figures randomly chosen from a normal distribution with a set mean.
+
+```{r}
+x[1:10, 1] <- x[1:10, 1] + 3
+x[1:10, 2] <- x[1:10, 2] - 4
+head(x)
+#All values in column 1 was increased by 3 units and column 2, decreased by 4.
+```
+
+**Task:** What has changed about the `x` matrix now? What do the above operations accomplish?
+
+*Your response here*
+The x matrix now shifted its central mean from (0,0) to (3,4)?
+
+```{r}
+?kmeans
+#Perform k-means clustering on a matrix
+km.out <- kmeans(x, 2, nstart = 20) 
+#We're asking for 2 clusters for x and we are sampling from 20 random sets.
+km.out$cluster
+```
+
+**Task:** Investigate the `kmeans` function and what arguments/settings it takes. What does the 2 and 20 in this function do? Work with a programming buddy to try generating alternative results that tweak these settings.
+
+```{r}
+# Your code here
+km.out2 <- kmeans(x, 2, nstart = 4) 
+km.out2$cluster
+km.out2 <- kmeans(x, 2, nstart = 3) 
+km.out2$cluster
+km.out2 <- kmeans(x, 2, nstart = 3) 
+km.out2$cluster
+km.out2 <- kmeans(x, 3, nstart = 1) 
+km.out2$cluster
+```
+
+*Your response here*
+
+The first number indicates the k-amount of clusters we're looking for. nstart means how many random matrixes we should sample. The more sets, the more accurate the model may be. If we have two of the same k and nstart values, since the seed is set, the k means clustering will achieve the same result (it is deterministic).
+
+The code provided in your textbook *ISLR* uses the below code to plot the results. Here it is using the `plot` function that comes default with the R programming language. It is not as pretty as what you can produce using `ggplot` function from the *ggplot2* library.
+
+```{r}
+plot(x, col = (km.out$cluster + 1), main = "K-Means Clustering Results with K=2",
+     xlab = "", ylab = "", pch = 20, cex = 2)
+#main = gives us the title.
+#Again we employ the color function for aesthetics
+#cex determines the size of the shapes.
+```
+
+```{r}
+library(ggplot2)
+```
+
+To make a prettier plot, we can apply the `ggplot` function instead, but first we will need to manipulate the data to be compatible with this library. For example, the `ggplot` function takes a dataframe and not a matrix. So we will first convert the data.
+
+```{r}
+class(x)
+x.df <- as.data.frame(x)
+class(x.df)
+#As we have seen, as.____ usually is capable of changing the class of a variable.
+```
+
+To make the same scatterplot, we provide the `ggplot` function with the data now as a dataframe (`x.df`) and specify the aesthetics (what is the x-axis and what is the y-axis). We can then tell it to color based on the cluster assignments. We need to add the `geom_point()` layer in order to draw the data points.
+
+```{r}
+ggplot(data = x.df, aes(x = V1, y = V2, color = km.out$cluster)) + geom_point()
+```
+
+You'll notice above that the color legend for the cluster assignments is a continuous scale from 1 to 2. The `ggplot` function doesn't realize that the cluster assignments (1 or 2) are categorical assignments (you are one or the other) and not a numerical value (like gene expression or age). We can convert it to a categorical factor using the `as.factor()` function, which then treats it as two different options.
+
+```{r}
+ggplot(data = x.df, aes(x = V1, y = V2, color = as.factor(km.out$cluster))) + geom_point()
+#as.factor function coverts numbers to categorical types, which would we useful for data such as sex.
+```
+
+Whenever you deal with analysis that is stochastic/random and not deterministic, it is a good idea to manually set the seed so that your analysis is reproducible.
+
+```{r}
+set.seed(4)
+km.out <- kmeans(x, 3, nstart = 20)
+km.out
+```
+
+**Task:** Compare your results with a programming buddy. Rerun the code with a different value of `set.seed` and see how your results change.
+
+```{r}
+# Your code here
+set.seed(50)
+kmeans(x,5,nstart=60)
+```
+
+*Your response here*
+
+As long as the set.seed contains the same value, clustering based on a randomly generated matrix will always be the same, even on different laptops with different RStudios.
+
+```{r}
+ggplot(data = x.df, aes(x = V1, y = V2, color = as.factor(km.out$cluster))) + geom_point()
+```
+
+**Task:** Compare this result with the prior plot that showed the clustering of the cells. Which do you think is a more fitting grouping and why?
+
+*Your response here*
+I think the green and blue should belong to the same cluster. When they are further divided, it feels unnatural, whereas there always seemed a line or a form of separation between the original blue and red.
+
+```{r}
+set.seed(3)
+km.out <- kmeans(x, 3, nstart = 1)
+km.out$tot.withinss
+#tot.withinss means total within-cluster sum of squares
+```
+
+**Task:** Doublecheck what the `nstart` argument in the `kmeans` function does.
+
+*Your response here*
+nstart means "if centers is a number, the number of random sets that should be chosen". So in this case, the k means clustering from a sample of 20 values will better reflect the data set.
+
+```{r}
+km.out <- kmeans(x, 3, nstart = 20)
+km.out$tot.withinss
+```
+
+**Task:** Check what is the significance of the `withinss` attribute of the `kmeans` function result. Why does it matter? Discuss with a programming buddy.
+
+*Your response here*
+Withinss attribute means the vector of within-cluster sum of squares, one component per cluster.
+------
+
+#### Hierarchical Clustering
+
+An alternative to k-means clustering is hierarchical clustering. However, we need to specify how the algorithm goes about lumping together data points that are similar.
+
+```{r}
+hc.complete <- hclust(dist(x), method = "complete")
+hc.average <- hclust(dist(x), method = "average")
+hc.single <- hclust(dist(x), method = "single")
+#Defining the three types of hierarchial clustering
+```
+
+This code is provided in the *ISLR* textbook that uses base R programming to plot and uses the `par` function in order to put the plots next to each other (in a single row with three panels). You have to put in a bit more work to get this plot to work in *ggplot2* so come talk to me if you are interested in that for your project.
+
+```{r}
+par(mfrow = c(1, 3))
+plot(hc.complete, main = "Complete Linkage", xlab = "", sub = "", cex = 0.9)
+plot(hc.average, main = "Average Linkage", xlab = "", sub = "", cex = 0.9)
+plot(hc.single, main = "Single Linkage", xlab = "", sub = "", cex = 0.9)
+
+#Complete makes sure that the clusters are very dissimilar from each other. They compute all pairwise dissimilarities and maximize it.
+#Average makes sure that the observations in clusters are average of dissimilarities???
+#Single records the smallest of inter-cluster dissimilarities. Often result in extended trailing clusters where observations are fused one-by-one???
+#I'm a little confused by average/single and not sure how they're one of the best dendrogram methods.
+```
+
+**Task:** With a programming buddy, discuss the difference between these different linkages in terms of the appearance of the tree. How does the tree topology differ?
+
+*Your response here*
+The complete and average linkages produce very similar dendrograms, the only real variations being at what height the branches/leaves fuse together. The single linkage produces a much "taller" graph, in the sense that branches often only link with trees and not other branches. This fuses one, by one, by one, and so on.
+
+```{r}
+cutree(hc.complete, 4)
+cutree(hc.average, 4)
+cutree(hc.single, 4)
+?cutree
+```
+
+**Task:** What does the `cutree` function do? Notice how the above clustering results show a complete tree starting from all of the individual data points lumped into one cluster (the root) to the bottom of the tree where each data point is a separate cluster in itself (the leaves).
+
+*Your response here*
+
+Cutree() essentially turns a hierarchial cluster dendrogram into a set k number of clusters. It categorizes each data point in a cluster.
+
+```{r}
+par(mfrow = c(1, 3))
+plot(hc.complete, main = "Complete Linkage", xlab = "", sub = "", cex = 0.9)
+#By adding the sub = we get rid of the legend.
+rect.hclust(hc.complete , k = 4)
+#Isolating, using rectangles, the four clusters. K is given as an argument.
+plot(hc.average, main = "Average Linkage", xlab = "", sub = "", cex = 0.9)
+rect.hclust(hc.average , k = 4)
+plot(hc.single, main = "Single Linkage", xlab = "", sub = "", cex = 0.9)
+rect.hclust(hc.single , k = 4)
+```
+
+**Task:** How do the final assignments to `k = 4` clusters compare depending on the linkage used in creating the hierarchical clustering tree?
+
+*Your response here*
+For all three methods, there are occurrences of single points as considered a cluster. This is probably inaccurate and a result of over-stratification. There is a lot of variance left to explore, which is a testament to how important it is to choose the method that best suits your type of data and scenario.
+------
+
+#### Clustering the NCI60 Data
+
+You practiced applying PCA and tSNE to the NCI60 dataset and now you will have a chance to apply clustering to this same data. We will start with some pre-processing to scale the data and then calculate the distance between samples in this data.
+
+```{r}
+sd.data <- scale(nci.data)
+data.dist <- dist(sd.data)
+par(mfrow = c(1, 3))
+plot(hclust(data.dist), labels = nci.labs, main = "Complete Linkage",
+     xlab = "", sub = "", ylab = "")
+plot(hclust(data.dist, method = "average"), labels = nci.labs, main = "Average Linkage",
+     xlab = "", sub = "", ylab = "")
+plot(hclust(data.dist, method = "single"), labels = nci.labs, main = "Single Linkage",
+     xlab = "", sub = "", ylab = "")
+```
+
+**Task:** Discuss how you might choose to use the "complete linkage" tree over the other trees. What do you think as you compare the tree topologies? Check with your programming buddy.
+
+*Your response here*
+
+The complete linkage tree has much more concentrated data and most points fuse, for the first time, at generally lower heights. This means that the points within a cluster are more likely to be closely linked or associated. In Average and Single linkage, however, some initial fusions happen far later (or farther, in terms of height) than others. This points to a low accuracy in the clustering
+
+```{r}
+hc.out <- hclust(data.dist)
+plot(hc.out, labels = nci.labs)
+rect.hclust(hc.out , k = 4)
+hc.clusters <- cutree(hc.out, 4)
+table(hc.clusters, nci.labs)
+```
+
+**Task:** How are the different kinds of tumors distributed across the different clusters? How would you interpret this data? Discuss your findings with a programming buddy.
+
+*Your response here*
+
+The labels are a little crowded here so I'm a little unsure. I think I see a lot of reproductive and leukemia cancers grouped together, breast and cns cancers, a big group, and colon cancer separate from the others. This probably points to similarities in genetic/biological composition, manifestations and symptoms, and methods to cure.
+
+```{r}
+set.seed(2)
+km.out <- kmeans(sd.data, 4, nstart = 20)
+km.clusters <- km.out$cluster
+table(km.clusters, hc.clusters)
+?table
+```
+
+If you are confused about how the `table` function is doing here and what the result is, you should look up "contingency tables."
+
+**Task:** How do the `hclust` results compared to the `kmeans` reslts? Discuss with a programming buddy.
+
+*Your response here*
+A contingency table summarizes frequency from two factors.
+Here, when k-means clustering is used, we have 20, 27, 9, and 8 cancers in 4 cluster groups, respectively.
+When hierarchial is used, we have 40, 7, 8, and 9, respectively.
+This highlights the difference between the clusters when we use a different method.
+
+------
+
+#### Clustering Exercises
+
+* Write up and interpret results of NCI60 analysis.
+* Practice applying clustering to another cell line dataset.
+
+Uncomment the below code (remove the # signs before each line of code in the code block) once you have generated the correct `pr.out` variable.
+
+```{r}
+hc.out <- hclust(dist(pr.out$x[, 1:5]))
+hc.out
+plot(hc.out, labels = nci.labs, main = "Hier. Clust. on First Five PCs")
+table(cutree(hc.out, 4), nci.labs)
+```
+
+**Task:** Discuss these results. How would you interpret them?
+
+*Your response here*
+
+I would look at the fusions towards the bottom and see which types immediately associate with each other at a low height on the dendrogram.
+
+NSCLC and Colon cancers closely relate.
+Breast and melanoma closely relate.
+MCE7-reproductive, K562-reproductive closely relate.
+Leukemia is sort of its own type.
+Prostate, ovarian, renal, etc. closely relate.
+
+**Task:** For a challenge, try to plot datapoints for each cell line using the PCA coordinates and colored by cluster. You are encouraged to work with your programming buddy.
+
+```{r}
+# Your code here
+data_cancer = prcomp(nci.data, scale = TRUE)
+?plot
+biplot(prcomp(nci.data, scale = TRUE, col = km.clusters), xlab = "PCA1", ylab = "PCA2")
+#I think I did something incorrectly here.
+```
+
+Practice applying dimensionality reduction and clustering to a new cell line dataset that you will load from a local csv file. Please be sure to download the file "cell_line_data.csv" from the Canvas page.
+
+```{r}
+save.data <- read.csv("cell_line_data.csv", header = TRUE, stringsAsFactors = FALSE,
+                     row.names = 1)
+
+```
+
+**Task:** Check the settings that the `read.csv` function takes.
+
+*Your response here*
+read.csv interprets an imported file as a data frame file and organizes the cases and the variables.
+
+
+```{r}
+?read.csv
+sample = save.data[1:5, 1:5]
+summary(prcomp(save.data[1:30,1:30]))
+#Although this is inaccurate (since it's taken from only the first 30 rows and columns), we know from this by the 5th dimension, we should get a pretty good representation of the whole data set.
+sample
+```
+
+For all of the following tasks, please consider working with your programming buddy or checking in on your work/strategies afterward.
+
+**Task:** Write code to plot some of this data to get a feel for how the cell lines differ according to expression of one or more genes.
+
+```{r}
+# Your code here
+PCA_plot = biplot(prcomp(save.data[1:15,1:15], scale = TRUE), scale = 0, xlab = "PCA1", ylab = "PCA2")
+#Here we can see how a bunch of cell lines share similar entities or factors (that cluster aligned with the horizontal PCA1 direction).
+
+```
+
+**Task:** Write code to cluster the cell lines (shown as the rownames) based on the expression of the first 100 genes.
+
+```{r}
+# Your code here
+cluster_sample <- save.data[1:20]
+plot(cluster_sample, labels = save.data$labs[1:20], main = "Hierarchial Cluster")
+#I'm not sure how I got this kind this graph.
+```
+
+**Task:** Write code to cluster the cell lines (shown as the rownames) based on the expression of the first 100 genes in a different way (use `kmeans` if you used `hclust` or vice versa). How do the results compare?
+
+```{r}
+# Your code here
+```
+
+*Your response here*
+
+**Task:** Write code to cluster the cell lines (shown as the rownames) based on the first few principal components. That is, perform PCA on this dataset and keep only the coordinates for the first few PCs (your choice for how many). Then perform clustering only on the PC coordinates, not the original expression values.
+
+```{r}
+# Your code here
+
+```
+
+**Task:** Based on these clustering results, what are your conclusions? What questions/hypotheses does this generate? Feel free to google these cell lines or the gene names to follow up on your interpretations. Share your findings with your programming buddy.
+
+*Your response here*
